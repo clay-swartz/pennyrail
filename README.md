@@ -41,3 +41,7 @@ They are sacrificial canaries. We are testing discovery + payment + settlement. 
 
 ## Current x402 assumptions
 Built from x402 v2 docs available Aug 2026: `@x402/next`, `@x402/core`, `@x402/evm`; Base Sepolia testnet `eip155:84532`; Base mainnet `eip155:8453`; test facilitator `https://x402.org/facilitator`; mainnet default set to Coinbase's documented facilitator endpoint.
+
+
+## Build fix v2
+The x402 network identifier is explicitly typed as a CAIP-2 network (`${string}:${string}`), preserving `eip155:8453` / `eip155:84532` as the type expected by @x402/core RouteConfig.

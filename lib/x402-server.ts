@@ -3,7 +3,7 @@ import { ExactEvmScheme } from "@x402/evm/exact/server";
 
 export const payTo = process.env.PENNYRAIL_PAY_TO || "0x0000000000000000000000000000000000000000";
 export const mode = process.env.X402_MODE === "mainnet" ? "mainnet" : "testnet";
-export const network = mode === "mainnet" ? "eip155:8453" : "eip155:84532";
+export const network: `${string}:${string}` = mode === "mainnet" ? "eip155:8453" : "eip155:84532";
 export const facilitatorUrl = process.env.X402_FACILITATOR_URL ||
   (mode === "mainnet" ? "https://api.cdp.coinbase.com/platform/v2/x402" : "https://x402.org/facilitator");
 

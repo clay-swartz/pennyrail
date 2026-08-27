@@ -8,10 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "@x402/core": "latest",
-    "@x402/evm": "latest",
-    "@x402/fetch": "latest",
-    "@x402/next": "latest",
+    "@x402/core": "2.23.0",
+    "@x402/evm": "2.23.0",
+    "@x402/fetch": "2.23.0",
+    "@x402/next": "2.23.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
