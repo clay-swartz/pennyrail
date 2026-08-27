@@ -22,8 +22,13 @@ async function buildBuyer() {
   // Coinbase's CdpX402Client currently pulls SVM modules into the Next.js bundle.
   // Export the named EVM key only into server memory so the standard EVM-only
   // x402 client can sign. Never log or return this key.
-  const privateKey = await cdp.evm.exportAccount({ name: BUYER_ACCOUNT_NAME });
-  const signer = privateKeyToAccount(privateKey as `0x${string}`);
+  const exportedPrivateKey = await cdp.evm.exportAccount({ name: BUYER_ACCOUNT_NAME });
+  // Coinbase exportAccount() returns the EVM key without a 0x prefix.
+  // viem requires a 0x-prefixed 32-byte hex private key. Normalize defensively.
+  const privateKey = (exportedPrivateKey.startsWith("0x")
+    ? exportedPrivateKey
+    : `0x${exportedPrivateKey}`) as `0x${string}`;
+  const signer = privateKeyToAccount(privateKey);
 
   const client = new x402Client();
   client.register("eip155:*", new ExactEvmScheme(signer));
