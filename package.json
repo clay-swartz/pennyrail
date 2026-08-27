@@ -2,16 +2,21 @@
   "name": "pennyrail-mvp",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
+    "@coinbase/cdp-sdk": "1.55.0",
     "@x402/core": "2.23.0",
     "@x402/evm": "2.23.0",
     "@x402/fetch": "2.23.0",
     "@x402/next": "2.23.0",
+    "@x402/svm": "2.23.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",

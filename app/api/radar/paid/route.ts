@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req:NextRequest){
   if(!process.env.RADAR_ADMIN_TOKEN || req.headers.get('x-admin-token')!==process.env.RADAR_ADMIN_TOKEN) return NextResponse.json({error:'unauthorized'},{status:401});
   try{
-    const pf=paidFetch();
+    const pf=await paidFetch();
     const [d,b]=await Promise.all([
       pf("https://agent402.tools/api/demand-radar?sort=count&limit=20&minCount=1"),
       pf("https://agent402.tools/api/bestsellers?days=30&sort=buyers&limit=20"),
