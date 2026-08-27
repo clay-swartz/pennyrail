@@ -6,6 +6,7 @@ export default function Home(){
  const [paid,setPaid]=useState<any>(null);
  const [wallet,setWallet]=useState<any>(null);
  const [selfTest,setSelfTest]=useState<any>(null);
+ const [diagnostics,setDiagnostics]=useState<any>(null);
  const [token,setToken]=useState("");
  async function loadMarket(){setMarket(await (await fetch("/api/radar/market")).json())}
  async function adminCall(path:string,method="GET"){
@@ -15,6 +16,7 @@ export default function Home(){
  async function loadWallet(){setWallet(await adminCall("/api/radar/wallet"))}
  async function fundWallet(){setWallet(await adminCall("/api/radar/wallet","POST"))}
  async function runSelfTest(){setSelfTest(await adminCall("/api/radar/self-test","POST"))}
+ async function runDiagnostics(){setDiagnostics(await adminCall("/api/radar/diagnostics"))}
  return <main style={{maxWidth:1100,margin:"0 auto",padding:"44px 24px"}}>
   <div style={{fontSize:12,letterSpacing:3,color:"#b7a77f"}}>PENNYRAIL</div>
   <h1 style={{fontSize:48,margin:"12px 0"}}>Robot tollbooth lab.</h1>
@@ -24,6 +26,20 @@ export default function Home(){
     <h2>Admin access</h2>
     <p style={muted}>Use the RADAR_ADMIN_TOKEN you set in Vercel. It is used only to protect buyer-wallet and paid-intelligence actions.</p>
     <input value={token} onChange={e=>setToken(e.target.value)} placeholder="RADAR_ADMIN_TOKEN" style={input}/>
+  </section>
+
+  <section style={{...card,marginTop:16}}>
+    <h2>Coinbase auth diagnostics</h2>
+    <p style={muted}>Checks credential format locally, then tests Coinbase API-key auth and Wallet Secret auth separately. It never returns secret values.</p>
+    <button style={btn} onClick={runDiagnostics}>Run auth diagnostics</button>
+    {diagnostics && !diagnostics.error ? <div style={{marginTop:12,lineHeight:1.9,fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",fontSize:13}}>
+      <div>API KEY FORMAT: {diagnostics.apiKeyFormat?.ok ? "OK" : "FAILED"}</div>
+      <div>WALLET SECRET FORMAT: {diagnostics.walletSecretFormat?.ok ? "OK" : "FAILED"}</div>
+      <div>COINBASE API AUTH: {diagnostics.apiAuth?.ok ? "OK" : "FAILED"}</div>
+      <div>COINBASE WALLET AUTH: {diagnostics.walletAuth?.ok ? "OK" : diagnostics.walletAuth?.skipped ? "SKIPPED" : "FAILED"}</div>
+      <div style={{marginTop:8,color:"#d5c7a5"}}>{diagnostics.diagnosis}</div>
+    </div> : null}
+    <pre style={pre}>{diagnostics?JSON.stringify(diagnostics,null,2):"Not run"}</pre>
   </section>
 
   <section style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:16,marginTop:16}}>
