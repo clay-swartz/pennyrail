@@ -3,18 +3,28 @@ import { wrapFetchWithPayment } from "@x402/fetch";
 import { x402Client } from "@x402/core/client";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 
-const BUYER_ACCOUNT_NAME = "pennyrail-radar-buyer";
+export const BUYER_ACCOUNT_NAME = "pennyrail-radar-buyer";
 
 let cdpClient: CdpClient | null = null;
 let cachedAccount: Promise<any> | null = null;
 let cachedPaidFetch: Promise<typeof fetch> | null = null;
 
-function getCdpClient() {
-  if (!cdpClient) cdpClient = new CdpClient();
+function env(name: string) {
+  return process.env[name]?.trim();
+}
+
+export function getCdpClient() {
+  if (!cdpClient) {
+    cdpClient = new CdpClient({
+      apiKeyId: env("CDP_API_KEY_ID"),
+      apiKeySecret: env("CDP_API_KEY_SECRET"),
+      walletSecret: env("CDP_WALLET_SECRET"),
+    });
+  }
   return cdpClient;
 }
 
-async function buyerAccount() {
+export async function buyerAccount() {
   if (!cachedAccount) {
     cachedAccount = getCdpClient().evm.getOrCreateAccount({ name: BUYER_ACCOUNT_NAME });
   }
@@ -24,9 +34,8 @@ async function buyerAccount() {
 async function buildPaidFetch() {
   const account = await buyerAccount();
 
-  // Coinbase's managed EVM server account already implements the x402 signer
-  // capabilities we need (address + signTypedData). Keep custody and signing
-  // inside CDP; never export the private key into PennyRail or Vercel memory.
+  // Coinbase's managed EVM server account implements the signer capabilities
+  // x402 needs. Keep custody/signing inside CDP; never export the private key.
   const client = new x402Client();
   client.register("eip155:*", new ExactEvmScheme(account as any));
 
