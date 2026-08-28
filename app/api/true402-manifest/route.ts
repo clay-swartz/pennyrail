@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       "time",
       "encoding",
       "validation",
-      ...FACTORY_CAPABILITIES.map(c => c.id),
+      "lookup",
     ],
     pricing: {
       currency: "USDC",
