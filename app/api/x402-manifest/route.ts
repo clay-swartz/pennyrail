@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
       `${origin}/api/tools/json-canonicalize`,
       `${origin}/api/tools/text-stats`,
       `${origin}/api/tools/strip-tracking`,
+      `${origin}/api/factory/run`,
     ],
     payment: {
       x402: {
@@ -31,16 +32,17 @@ export async function GET(req: NextRequest) {
         currency: "USDC",
         networks: [network],
         primaryNetwork: network,
-        priceRange: "$0.001",
+        priceRange: "$0.001-$0.003",
         payTo,
         payToName: "PennyRail",
         nonCustodial: true,
       },
     },
     capabilities: {
-      tools: 3,
+      tools: 4,
       categories: [
         { key: "utility", label: "Deterministic utilities", tools: 3, priceRange: "$0.001" },
+        { key: "factory", label: "Dynamic micro-capability factory", tools: 1, priceRange: "$0.003" },
       ],
     },
     discovery: {
