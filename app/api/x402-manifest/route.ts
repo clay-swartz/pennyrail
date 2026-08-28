@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FACTORY_CAPABILITIES } from "@/lib/factory";
+import { staticRevenueProductRoutes, type RevenueProductRoute } from "@/lib/revenue-engine";
+import { getCachedRevenueAudit } from "@/lib/revenue-engine-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -14,18 +16,23 @@ export async function GET(req: NextRequest) {
   const mainnet = process.env.X402_MODE?.trim() === "mainnet";
   const payTo = process.env.PENNYRAIL_PAY_TO || "";
   const network = mainnet ? "eip155:8453" : "eip155:84532";
+  const revenueAudit = await getCachedRevenueAudit();
+  const revenueRoutes: RevenueProductRoute[] = Array.isArray(revenueAudit.productRoutes) && revenueAudit.productRoutes.length
+    ? revenueAudit.productRoutes as RevenueProductRoute[]
+    : staticRevenueProductRoutes();
 
   return NextResponse.json({
     spec: "agent402-service-manifest/1",
     version: 1,
     name: "PennyRail",
-    summary: "Tiny deterministic pay-per-call utilities for autonomous agents.",
+    summary: "Autonomous demand-aligned pay-per-call products for AI agents.",
     homepage: origin,
     resources: [
       `${origin}/api/tools/json-canonicalize`,
       `${origin}/api/tools/text-stats`,
       `${origin}/api/tools/strip-tracking`,
       ...FACTORY_CAPABILITIES.map(c => `${origin}/api/f/${c.id}`),
+      ...revenueRoutes.map(p => `${origin}${p.path}`),
     ],
     payment: {
       x402: {
@@ -33,16 +40,17 @@ export async function GET(req: NextRequest) {
         currency: "USDC",
         networks: [network],
         primaryNetwork: network,
-        priceRange: "$0.001",
+        priceRange: "$0.001-$0.01",
         payTo,
         payToName: "PennyRail",
         nonCustodial: true,
       },
     },
     capabilities: {
-      tools: FACTORY_CAPABILITIES.length + 3,
+      tools: FACTORY_CAPABILITIES.length + 3 + revenueRoutes.length,
       categories: [
-        { key: "utility", label: "Deterministic utilities", tools: FACTORY_CAPABILITIES.length + 3, priceRange: "$0.001" },
+        { key: "utility", label: "Core deterministic utilities", tools: FACTORY_CAPABILITIES.length + 3, priceRange: "$0.001" },
+        { key: "revenue-engine", label: "Demand-aligned autonomous products", tools: revenueRoutes.length, priceRange: "$0.001-$0.01" },
       ],
     },
     discovery: {
