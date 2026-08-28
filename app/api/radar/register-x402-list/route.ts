@@ -25,11 +25,13 @@ function publicOrigin(req: NextRequest) {
 }
 
 function endpointInventory() {
+  // x402 List's initial /submit API accepts path strings only (no HTTP method
+  // prefix). It probes the path and detects the payment requirements itself.
   return [
-    "POST /api/tools/json-canonicalize",
+    "/api/tools/json-canonicalize",
     "/api/tools/text-stats",
     "/api/tools/strip-tracking",
-    ...FACTORY_CAPABILITIES.map(c => `POST /api/f/${c.id}`),
+    ...FACTORY_CAPABILITIES.map(c => `/api/f/${c.id}`),
   ];
 }
 
@@ -61,6 +63,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       error: "PennyRail endpoint inventory is not exactly 50 paid resources.",
       endpointCount: endpoints.length,
+    }, { status: 500 });
+  }
+
+  // Match x402 List's documented initial-submission path grammar locally so a
+  // malformed endpoint can never trigger a paid submission attempt.
+  const invalidEndpoints = endpoints.filter(path => !/^\/[A-Za-z0-9/_.~-]+$/.test(path));
+  if (invalidEndpoints.length) {
+    return NextResponse.json({
+      error: "PennyRail generated an invalid x402 List endpoint path. Nothing was paid.",
+      invalidEndpoints,
     }, { status: 500 });
   }
 
