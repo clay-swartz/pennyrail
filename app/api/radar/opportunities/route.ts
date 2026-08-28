@@ -9,6 +9,30 @@ function authorized(req: NextRequest) {
     req.headers.get("x-admin-token") === process.env.RADAR_ADMIN_TOKEN;
 }
 
+async function fetchJson(url: string, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      signal: controller.signal,
+      headers: { accept: "application/json" },
+    });
+    const text = await response.text();
+    let body: any = null;
+    try { body = text ? JSON.parse(text) : null; } catch {}
+    return {
+      ok: response.ok,
+      status: response.status,
+      contentType: response.headers.get("content-type") || "",
+      body,
+      raw: body ? null : text.slice(0, 500),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function rowsFromWishes(payload: any): AnyRow[] {
   const candidates = [
     payload?.clusters,
@@ -56,37 +80,52 @@ function ageDays(value: any) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!authorized(req)) {
+    return NextResponse.json({ error: "unauthorized", stage: "admin-auth" }, { status: 401 });
+  }
 
   try {
-    const wishesRes = await fetch("https://agent402.tools/api/wishes", { cache: "no-store" });
-    if (!wishesRes.ok) {
+    let wishesFetch;
+    try {
+      wishesFetch = await fetchJson("https://agent402.tools/api/wishes", 6000);
+    } catch (error) {
       return NextResponse.json({
-        error: "Agent402 wishes feed unavailable",
-        status: wishesRes.status,
+        error: "Agent402 wishes feed timed out or could not be reached.",
+        stage: "wishes-fetch",
+        detail: error instanceof Error ? error.message : "unknown error",
       }, { status: 502 });
     }
 
-    const wishes = await wishesRes.json();
+    if (!wishesFetch.ok || !wishesFetch.body) {
+      return NextResponse.json({
+        error: "Agent402 wishes feed did not return usable JSON.",
+        stage: "wishes-fetch",
+        status: wishesFetch.status,
+        contentType: wishesFetch.contentType,
+        preview: wishesFetch.raw,
+      }, { status: 502 });
+    }
+
+    const wishes = wishesFetch.body;
     const rows = rowsFromWishes(wishes)
       .filter((r: AnyRow) => r && typeof (r.text ?? r.query ?? r.wish) === "string")
       .map((r: AnyRow) => ({ ...r, text: String(r.text ?? r.query ?? r.wish).trim() }))
       .filter((r: AnyRow) => r.text)
       .sort((a: AnyRow, b: AnyRow) => Number(b.count || 1) - Number(a.count || 1))
-      .slice(0, 12);
+      .slice(0, 10);
 
     const threshold = Number(wishes?.threshold ?? wishes?.buildThreshold ?? wishes?.data?.threshold ?? 5) || 5;
 
-    const supplyChecks = await Promise.all(rows.slice(0, 10).map(async (row: AnyRow) => {
+    const supplyChecks = await Promise.all(rows.slice(0, 6).map(async (row: AnyRow) => {
       const url = `https://agent402.tools/api/find?q=${encodeURIComponent(row.text)}`;
       try {
-        const res = await fetch(url, { cache: "no-store" });
-        const body = res.ok ? await res.json() : null;
+        const result = await fetchJson(url, 3500);
+        const body = result.ok ? result.body : null;
         const matches = extractFindResults(body);
         const first = matches[0] || body?.best || body?.result || null;
         return {
           text: row.text,
-          ok: res.ok,
+          ok: result.ok,
           count: matches.length || (first ? 1 : 0),
           best: first ? {
             name: first.name || first.slug || first.title || first.tool || null,
@@ -126,9 +165,15 @@ export async function GET(req: NextRequest) {
 
       const reasons = [
         `${count} demand signal${count === 1 ? "" : "s"}`,
-        type === "explicit-request" ? "agents explicitly asked for it" : type === "discoverability" ? "may be a discovery problem, not a missing tool" : "mixed demand signal",
+        type === "explicit-request"
+          ? "agents explicitly asked for it"
+          : type === "discoverability"
+            ? "may be a discovery problem, not a missing tool"
+            : "mixed demand signal",
         nearThreshold ? `within ${gap} of Agent402's build threshold` : `${gap} signals below build threshold`,
-        supply.ok ? (supply.count === 0 ? "no matching supply found" : `${supply.count} matching result${supply.count === 1 ? "" : "s"} found`) : "supply check unavailable",
+        supply.ok
+          ? (supply.count === 0 ? "no matching supply found" : `${supply.count} matching result${supply.count === 1 ? "" : "s"} found`)
+          : "supply check unavailable",
       ];
 
       return {
@@ -149,16 +194,24 @@ export async function GET(req: NextRequest) {
     }).sort((a: AnyRow, b: AnyRow) => b.score - a.score);
 
     return NextResponse.json({
+      ok: true,
       generatedAt: new Date().toISOString(),
-      source: "Agent402 free wishes + free find/supply checks",
+      source: "Agent402 free wishes + limited free find/supply checks",
       buildThreshold: threshold,
       rawSignalsSeen: rows.length,
+      supplyChecksAttempted: Math.min(rows.length, 6),
       buildNow: opportunities.filter((x: AnyRow) => x.action === "BUILD").length,
       watch: opportunities.filter((x: AnyRow) => x.action === "WATCH").length,
       opportunities,
-      note: "This is PennyRail's free first-pass radar. Paid Demand Radar + Bestsellers can be layered in after the buyer wallet holds Base mainnet USDC.",
+      note: rows.length
+        ? "Free first-pass Radar completed."
+        : "The live wishes feed returned no current demand clusters.",
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "unknown error" }, { status: 500 });
+    return NextResponse.json({
+      error: "Radar scan failed.",
+      stage: "unexpected",
+      detail: error instanceof Error ? error.message : "unknown error",
+    }, { status: 500 });
   }
 }

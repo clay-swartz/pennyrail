@@ -10,9 +10,9 @@ function cleanOrigin(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const origin = cleanOrigin(req);
-  const mainnet = process.env.X402_MODE === "mainnet";
+  const mainnet = process.env.X402_MODE?.trim() === "mainnet";
   const payTo = process.env.PENNYRAIL_PAY_TO || "";
-  const network = mainnet ? "base" : "base-sepolia";
+  const network = mainnet ? "eip155:8453" : "eip155:84532";
 
   return NextResponse.json({
     spec: "agent402-service-manifest/1",
