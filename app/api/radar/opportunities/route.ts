@@ -35,13 +35,30 @@ async function fetchJson(url: string, timeoutMs = 5000) {
 
 function rowsFromWishes(payload: any): AnyRow[] {
   const candidates = [
+    payload?.radar,
     payload?.clusters,
     payload?.wishes,
+    payload?.items,
+    payload?.results,
+    payload?.data?.radar,
     payload?.data?.clusters,
     payload?.data?.wishes,
+    payload?.data?.items,
+    payload?.data?.results,
+    payload?.aggregate?.radar,
     payload?.aggregate?.clusters,
   ];
   return candidates.find(Array.isArray) || [];
+}
+
+function shapeSummary(payload: any) {
+  const topLevelKeys = payload && typeof payload === "object" ? Object.keys(payload).slice(0, 30) : [];
+  const dataKeys = payload?.data && typeof payload.data === "object"
+    ? Object.keys(payload.data).slice(0, 30)
+    : [];
+  const arrayFields = topLevelKeys.filter((key) => Array.isArray(payload?.[key]));
+  const dataArrayFields = dataKeys.filter((key) => Array.isArray(payload?.data?.[key]));
+  return { topLevelKeys, dataKeys, arrayFields, dataArrayFields };
 }
 
 function sourcesOf(row: AnyRow) {
@@ -199,6 +216,7 @@ export async function GET(req: NextRequest) {
       source: "Agent402 free wishes + limited free find/supply checks",
       buildThreshold: threshold,
       rawSignalsSeen: rows.length,
+      feedShape: shapeSummary(wishes),
       supplyChecksAttempted: Math.min(rows.length, 6),
       buildNow: opportunities.filter((x: AnyRow) => x.action === "BUILD").length,
       watch: opportunities.filter((x: AnyRow) => x.action === "WATCH").length,
