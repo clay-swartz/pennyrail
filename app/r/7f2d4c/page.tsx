@@ -118,6 +118,7 @@ export default function Home(){
         <Metric title="Needs primitive" value={String(yieldAudit.unresolved?.length||0)}/>
         <Metric title="Demand rows" value={String(yieldAudit.sources?.demandRowsExtracted||0)}/>
         <Metric title="Paid bestseller rows" value={String(yieldAudit.sources?.bestsellerRowsExtracted||0)}/>
+        <Metric title="Proven mapped" value={yieldAudit.portfolio?.provenBestsellerRows?`${yieldAudit.portfolio.provenBestsellerMapped||0}/${yieldAudit.portfolio.provenBestsellerRows}`:"—"}/>
       </div>:null}
       {yieldAudit?<pre style={pre}>{JSON.stringify({
         generatedAt:yieldAudit.generatedAt,
