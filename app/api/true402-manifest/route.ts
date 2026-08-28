@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FACTORY_CAPABILITIES } from "@/lib/factory";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +12,13 @@ export async function GET(req: NextRequest) {
   const origin = cleanOrigin(req);
   const payTo = process.env.PENNYRAIL_PAY_TO || "";
 
+  // true402's service manifest describes one purchasable service endpoint.
+  // PennyRail's true402 listing therefore points to the generic Factory
+  // dispatcher ($0.003/run), while Agent402 continues indexing all individual
+  // $0.001 factory tollbooths from OpenAPI.
   return NextResponse.json({
     x402: "1.0",
     name: "PennyRail",
-    description: "50 tiny deterministic pay-per-call utilities for autonomous software.",
     capabilities: [
       "machine-utilities",
       "text",
@@ -26,30 +28,19 @@ export async function GET(req: NextRequest) {
       "time",
       "encoding",
       "validation",
-      "lookup",
+      "lookup"
     ],
     pricing: {
       currency: "USDC",
-      base: 0.001,
-      unit: "request",
+      base: "0.003",
+      unit: "request"
     },
     payment: {
       address: payTo,
       chain: "base",
-      facilitator: process.env.X402_FACILITATOR_URL || "https://api.cdp.coinbase.com/platform/v2/x402",
+      facilitator: process.env.X402_FACILITATOR_URL || "https://api.cdp.coinbase.com/platform/v2/x402"
     },
-    endpoint: `${origin}/api/f/{operation}`,
-    openapi: `${origin}/openapi.json`,
-    manifest: `${origin}/.well-known/x402`,
-    toolCount: FACTORY_CAPABILITIES.length + 3,
-    tools: FACTORY_CAPABILITIES.map(c => ({
-      id: c.id,
-      title: c.title,
-      description: c.description,
-      endpoint: `${origin}/api/f/${c.id}`,
-      method: "POST",
-      price: "$0.001",
-    })),
+    endpoint: `${origin}/api/factory/run`
   }, {
     headers: { "cache-control": "public, max-age=60, s-maxage=300" },
   });
