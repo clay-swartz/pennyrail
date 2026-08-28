@@ -8,6 +8,7 @@ export default function Home(){
   const [revenue,setRevenue]=useState<any>(null);
   const [x402ListEmail,setX402ListEmail]=useState("");
   const [x402List,setX402List]=useState<any>(null);
+  const [yieldAudit,setYieldAudit]=useState<any>(null);
   const [busy,setBusy]=useState("");
 
   async function adminCall(path:string,method="GET"){
@@ -34,6 +35,13 @@ export default function Home(){
       try{setX402List(JSON.parse(text))}
       catch{setX402List({error:`HTTP ${r.status}: ${text.slice(0,500)}`})}
     } finally { setBusy(""); }
+  }
+
+
+  async function loadYieldAudit(){
+    setBusy("yield"); setYieldAudit(null);
+    try{setYieldAudit(await adminCall("/api/radar/revenue-engine"))}
+    finally{setBusy("")}
   }
 
   async function refreshRevenue(){
@@ -67,7 +75,7 @@ export default function Home(){
     <div style={{fontSize:11,letterSpacing:2.2,color:"#817966"}}>PENNYRAIL</div>
     <h1 style={{fontSize:28,fontWeight:500,margin:"14px 0 8px"}}>Machine revenue.</h1>
     <p style={{color:"#777",fontSize:12,lineHeight:1.7,margin:"0 0 24px"}}>
-      50 paid utilities · Base USDC · outside settlements only.
+      50 core utilities + autonomous demand products · Base USDC · outside settlements only.
     </p>
 
     <section style={{...box,marginBottom:16}}>
@@ -87,6 +95,38 @@ export default function Home(){
       </button>
       {revenue?.basescan?<a href={revenue.basescan} target="_blank" rel="noreferrer" style={link}>Open BaseScan ↗</a>:null}
       {revenue?.error?<pre style={pre}>{JSON.stringify(revenue,null,2)}</pre>:null}
+    </section>
+
+
+    <section style={{...box,marginBottom:16}}>
+      <div style={label}>REVENUE ENGINE · AUTONOMOUS GAP FACTORY</div>
+      <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
+        PennyRail scans live agent demand + x402 supply every day, scores monetizable gaps, and immediately exposes any need it can already fulfill as a paid demand-aligned product alias. The scan spends $0.
+      </p>
+      <button disabled={!token||!!busy} onClick={loadYieldAudit} style={primary}>
+        {busy==="yield"?"Auditing machine demand…":"Audit revenue gaps"}
+      </button>
+      <a href="/api/revenue/catalog" target="_blank" rel="noreferrer" style={link}>Open machine catalog ↗</a>
+      {yieldAudit?.portfolio?<div style={{...metrics,marginTop:14}}>
+        <Metric title="Revenue routes live" value={String(yieldAudit.portfolio.totalRevenueRoutesLive||0)}/>
+        <Metric title="Demand aliases" value={String(yieldAudit.portfolio.demandAliasesLive||0)}/>
+        <Metric title="Auto-live gaps" value={String(yieldAudit.autoLive?.length||0)}/>
+        <Metric title="Needs primitive" value={String(yieldAudit.unresolved?.length||0)}/>
+      </div>:null}
+      {yieldAudit?<pre style={pre}>{JSON.stringify({
+        generatedAt:yieldAudit.generatedAt,
+        sources:yieldAudit.sources,
+        market:yieldAudit.market?{
+          servicesObserved:yieldAudit.market.servicesObserved,
+          measuredVolumeUsd30d:yieldAudit.market.measuredVolumeUsd30d,
+          measuredTransactions30d:yieldAudit.market.measuredTransactions30d,
+          measuredBuyers30d:yieldAudit.market.measuredBuyers30d,
+          topCategories:yieldAudit.market.categories?.slice(0,8),
+        }:null,
+        portfolio:yieldAudit.portfolio,
+        autoLive:yieldAudit.autoLive?.slice(0,12),
+        unresolved:yieldAudit.unresolved?.slice(0,12),
+      },null,2)}</pre>:null}
     </section>
 
     <section style={{...box,marginBottom:16}}>
@@ -123,7 +163,7 @@ export default function Home(){
     },null,2)}</pre>:null}
 
     <section style={{...box,marginTop:16,color:"#777",fontSize:11,lineHeight:1.7}}>
-      Distribution live: x402scan + Agent402 index + true402. x402 List submission is available above. Agent402 revenue data refreshes hourly from Base USDC settlement logs.
+      Revenue Engine live: daily demand/supply audit + autonomous paid product aliases. Distribution live: x402scan + Agent402 index + true402 + x402 List review. Agent402 revenue data refreshes hourly from Base USDC settlement logs.
     </section>
   </main>
 }

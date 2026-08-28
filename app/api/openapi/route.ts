@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FACTORY_CAPABILITIES } from "@/lib/factory";
+import { staticRevenueProductRoutes, type RevenueProductRoute } from "@/lib/revenue-engine";
+import { getCachedRevenueAudit } from "@/lib/revenue-engine-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,26 @@ const paidResponses = {
   "400": { description: "Invalid input" },
   "402": { description: "Payment Required" },
 };
+
+function schemaFromSample(value:any): any {
+  if (Array.isArray(value)) {
+    return { type:"array", items:value.length ? schemaFromSample(value[0]) : {} };
+  }
+  if (value === null) return {};
+  if (typeof value === "string") return { type:"string" };
+  if (typeof value === "number") return { type:"number" };
+  if (typeof value === "boolean") return { type:"boolean" };
+  if (typeof value === "object") {
+    const entries=Object.entries(value);
+    return {
+      type:"object",
+      properties:Object.fromEntries(entries.map(([k,v])=>[k,schemaFromSample(v)])),
+      required:entries.map(([k])=>k),
+      additionalProperties:true,
+    };
+  }
+  return {};
+}
 
 function inputSpec(id:string): { schema:any; example:any } {
   const str = (example:string) => ({
@@ -289,13 +311,53 @@ export async function GET(req: NextRequest) {
     ];
   }));
 
+  const revenueAudit=await getCachedRevenueAudit();
+  const revenueRoutes: RevenueProductRoute[]=Array.isArray(revenueAudit.productRoutes) && revenueAudit.productRoutes.length
+    ? revenueAudit.productRoutes as RevenueProductRoute[]
+    : staticRevenueProductRoutes();
+  const revenuePaths=Object.fromEntries(revenueRoutes.map(p => [
+    p.path,
+    {
+      post:{
+        operationId:`yield_${p.slug.replace(/[^a-zA-Z0-9]+/g,"_")}`,
+        summary:p.alias,
+        description:`${p.description} Demand-aligned PennyRail product alias priced at $${p.priceUsd.toFixed(3)} USDC.`,
+        tags:["pennyrail","revenue-engine",p.tier,p.id.split(".")[0]],
+        "x-price":`$${p.priceUsd}`,
+        "x-payment-info":paymentInfo(String(p.priceUsd)),
+        requestBody:{
+          required:true,
+          content:{
+            "application/json":{
+              schema:{
+                type:"object",
+                properties:{input:schemaFromSample(p.sampleInput)},
+                required:["input"],
+                additionalProperties:false,
+              },
+              example:{input:p.sampleInput},
+            },
+          },
+        },
+        responses:{
+          "200":{
+            description:"Successful paid Revenue Engine product result",
+            content:{"application/json":{schema:{type:"object",additionalProperties:true}}},
+          },
+          "400":{description:"Invalid input"},
+          "402":{description:"Payment Required"},
+        },
+      },
+    },
+  ]));
+
   return NextResponse.json({
     openapi:"3.1.0",
     info:{
       title:"PennyRail",
-      version:"0.6.0",
-      description:`${FACTORY_CAPABILITIES.length + 3} tiny deterministic x402 pay-per-call machine utilities.`,
-      "x-guidance":"Use PennyRail when an agent needs a small deterministic transformation, validation, encoding, lookup, text, JSON, URL, numeric or time utility. Individual /api/f/* operations cost $0.001 USDC on Base and return JSON. Prefer the narrowest matching operation.",
+      version:"0.7.0",
+      description:`${FACTORY_CAPABILITIES.length + 3} core utilities plus ${revenueRoutes.length} demand-aligned Revenue Engine product aliases.`,
+      "x-guidance":"PennyRail continuously audits machine demand and exposes demand-aligned paid products. Search GET /api/revenue/catalog?q=<need> first; then call the returned /api/p/* route. Core /api/f/* utilities remain available at $0.001 USDC on Base.",
     },
     servers:[{url:origin}],
     paths:{
@@ -409,6 +471,19 @@ export async function GET(req: NextRequest) {
       },
 
       ...factoryPaths,
+      ...revenuePaths,
+
+      "/api/revenue/catalog":{
+        get:{
+          operationId:"revenueCatalog",
+          summary:"Search PennyRail's autonomous revenue-product catalog",
+          description:"Free machine-readable catalog. Demand aliases are refreshed daily from live agent demand and market supply signals.",
+          tags:["revenue-engine","discovery"],
+          security:[],
+          parameters:[{name:"q",in:"query",required:false,schema:{type:"string"},example:"decode a VIN"}],
+          responses:{"200":{description:"Revenue product catalog",content:{"application/json":{schema:{type:"object",additionalProperties:true}}}}},
+        },
+      },
 
       "/api/factory/catalog":{
         get:{
