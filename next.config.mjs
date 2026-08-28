@@ -11,6 +11,7 @@ const nextConfig = {
   async rewrites() {
     return [
       { source: "/.well-known/x402", destination: "/api/x402-manifest" },
+      { source: "/.well-known/x402-service.json", destination: "/api/true402-manifest" },
       { source: "/openapi.json", destination: "/api/openapi" },
     ];
   },
