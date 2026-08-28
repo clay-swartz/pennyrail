@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({ origin }),
       cache: "no-store",
     });
+
     const text = await res.text();
     let body: any = text;
     try { body = JSON.parse(text); } catch {}
@@ -97,9 +98,14 @@ export async function POST(req: NextRequest) {
       },
       marketplace: "Agent402 open x402 index",
       response: body,
-      note: res.ok ? "PennyRail was submitted for marketplace probing/indexing." : "Agent402 rejected or could not probe the listing; response included above."
+      note: res.ok
+        ? "PennyRail was submitted for marketplace probing/indexing."
+        : "Agent402 rejected or could not probe the listing; response included above."
     }, { status: res.ok ? 200 : 502 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "unknown error", origin }, { status: 500 });
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : "unknown error",
+      origin
+    }, { status: 500 });
   }
 }
