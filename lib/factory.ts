@@ -11,6 +11,61 @@ export type FactoryCapability = {
   network?: boolean;
 };
 
+
+export const FACTORY_SAMPLE_INPUTS: Record<string, any> = {
+  "text.normalize-whitespace": "  PennyRail   machine   utility  ",
+  "text.slugify": "PennyRail Machine Utility",
+  "text.lines-dedupe": ["alpha", "beta", "alpha"],
+  "text.lines-sort": ["zulu", "alpha", "mike"],
+  "text.extract-emails": "hello@example.com and ops@example.org",
+  "text.extract-urls": "Visit https://example.com and https://openai.com",
+  "text.word-frequency": "alpha beta alpha gamma",
+  "text.truncate": { text: "abcdefghij", max: 5 },
+  "json.flatten": { user: { name: "Ada", id: 1 } },
+  "json.get": { value: { user: { name: "Ada" } }, path: "user.name" },
+  "json.keys": { user: { name: "Ada", id: 1 } },
+  "json.sort-keys": { z: 1, a: { d: 2, c: 3 } },
+  "url.parse": "https://example.com/a?b=1#c",
+  "url.normalize": "HTTPS://Example.COM:443/a?z=2&a=1#frag",
+  "url.resolve": { base: "https://example.com/a/", relative: "../b" },
+  "url.query-to-json": "a=1&b=2&b=3",
+  "url.json-to-query": { a: 1, b: "two" },
+  "number.stats": [1, 2, 3, 4],
+  "number.percent-change": { from: 100, to: 125 },
+  "number.clamp": { value: 15, min: 0, max: 10 },
+  "time.to-iso": 1700000000,
+  "time.to-unix": "2026-01-01T00:00:00Z",
+  "encoding.base64-encode": "PennyRail",
+  "encoding.base64-decode": "UGVubnlSYWls",
+  "encoding.hex-encode": "PennyRail",
+  "encoding.hex-decode": "50656e6e795261696c",
+  "crypto.sha256": "PennyRail",
+  "dns.a": "example.com",
+  "npm.latest": "react",
+  "github.repo": "x402-foundation/x402",
+  "fx.convert": { amount: 1, from: "USD", to: "EUR" },
+  "country.lookup": "US",
+  "text.lowercase": "PENNYRAIL",
+  "text.uppercase": "pennyrail",
+  "text.reverse": "PennyRail",
+  "text.remove-empty-lines": "alpha\n\nbeta\n\n",
+  "text.char-count": "PennyRail",
+  "json.pick": { value: { a: 1, b: 2 }, keys: ["a"] },
+  "json.omit": { value: { a: 1, b: 2 }, keys: ["b"] },
+  "url.domain": "https://www.example.com/path",
+  "number.round": { value: 3.14159, decimals: 2 },
+  "number.sum": [1, 2, 3],
+  "time.diff-seconds": { from: "2026-01-01T00:00:00Z", to: "2026-01-01T00:01:00Z" },
+  "encoding.url-encode": "hello world",
+  "encoding.url-decode": "hello%20world",
+  "validation.email": "hello@example.com",
+  "validation.uuid": "550e8400-e29b-41d4-a716-446655440000",
+};
+
+export function factorySampleInput(operation: string) {
+  return FACTORY_SAMPLE_INPUTS[operation] ?? "PennyRail";
+}
+
 export const FACTORY_CAPABILITIES: FactoryCapability[] = [
   { id: "text.normalize-whitespace", title: "Normalize whitespace", description: "Collapse repeated whitespace and trim text.", keywords: ["normalize whitespace", "collapse whitespace", "clean whitespace", "extra spaces"], inputHint: "string" },
   { id: "text.slugify", title: "Slugify text", description: "Convert text to a lowercase URL-safe slug.", keywords: ["slugify", "url slug", "slug text"], inputHint: "string" },

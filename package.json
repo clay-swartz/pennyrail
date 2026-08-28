@@ -20,7 +20,8 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "viem": "latest"
+    "viem": "latest",
+    "@x402/extensions": "2.23.0"
   },
   "devDependencies": {
     "@types/node": "latest",
