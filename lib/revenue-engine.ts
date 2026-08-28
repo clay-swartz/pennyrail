@@ -1,4 +1,5 @@
 import { FACTORY_CAPABILITIES, matchCapability, runFactoryOperation, type FactoryCapability } from "@/lib/factory";
+import { paidFetchBaseUsdcCapped } from "@/lib/radar-buyer";
 
 export type RevenueTier = "nano" | "network" | "micro" | "standard";
 
@@ -450,6 +451,10 @@ function resolveNeedProduct(need: string) {
   return null;
 }
 
+export function resolveRevenueNeed(need: string) {
+  return resolveNeedProduct(need);
+}
+
 function categoryRollup(services: MarketService[]) {
   const map = new Map<string, { category: string; services: number; volumeUsd30d: number; txCount30d: number; buyers30d: number; priceSum: number; priced: number }>();
   for (const service of services) {
@@ -474,22 +479,137 @@ function categoryRollup(services: MarketService[]) {
   })).sort((a, b) => b.volumeUsd30d - a.volumeUsd30d || b.buyers30d - a.buyers30d);
 }
 
+type BestsellerRow = {
+  rank: number;
+  slug: string;
+  sales: number;
+  revenueUsd: number;
+  buyers: number;
+  organicScore: number;
+  avgTicketUsd: number;
+  deltaSales: number;
+  trend: string;
+};
+
+async function responseJson(response: Response) {
+  const text = await response.text();
+  let body: any = null;
+  try { body = text ? JSON.parse(text) : null; } catch { body = text || null; }
+  if (!response.ok) throw new Error(`upstream returned HTTP ${response.status}: ${typeof body === "string" ? body.slice(0,200) : JSON.stringify(body).slice(0,300)}`);
+  return body;
+}
+
+async function fetchPaidAgent402Intelligence() {
+  const out: { demandRadar: any; bestsellers: any; spendUsd: number; errors: string[] } = {
+    demandRadar: null,
+    bestsellers: null,
+    spendUsd: 0,
+    errors: [],
+  };
+  try {
+    const payFetch = await paidFetchBaseUsdcCapped(0.005);
+    try {
+      const response = await payFetch("https://agent402.tools/api/demand-radar?sort=count&limit=50&minCount=1", {
+        method: "GET",
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      out.demandRadar = await responseJson(response);
+      out.spendUsd += 0.005;
+    } catch (error) {
+      out.errors.push(`demand-radar: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    try {
+      const response = await payFetch("https://agent402.tools/api/bestsellers?days=30&sort=buyers&limit=50", {
+        method: "GET",
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      out.bestsellers = await responseJson(response);
+      out.spendUsd += 0.005;
+    } catch (error) {
+      out.errors.push(`bestsellers: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } catch (error) {
+    out.errors.push(`buyer: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return out;
+}
+
+function bestsellerRows(payload: any): BestsellerRow[] {
+  const rows = Array.isArray(payload?.bestsellers) ? payload.bestsellers : [];
+  return rows.map((row: any, i: number) => ({
+    rank: Number(row?.rank || i + 1),
+    slug: asText(row?.slug).trim(),
+    sales: Number(row?.sales || 0),
+    revenueUsd: Number(row?.revenueUsd || 0),
+    buyers: Number(row?.buyers || 0),
+    organicScore: Number(row?.organicScore || 0),
+    avgTicketUsd: Number(row?.avgTicketUsd || 0),
+    deltaSales: Number(row?.deltaSales || 0),
+    trend: asText(row?.trend || ""),
+  })).filter((row: BestsellerRow) => row.slug);
+}
+
+type Agent402CatalogEndpoint = { slug?: string; name?: string; description?: string; category?: string; price?: string; path?: string };
+
+function agent402CatalogMap(payload: any) {
+  const rows: Agent402CatalogEndpoint[] = Array.isArray(payload?.endpoints) ? payload.endpoints : [];
+  return new Map(rows.map((row) => [asText(row?.slug).trim(), row] as const).filter(([slug]) => Boolean(slug)));
+}
+
+function bestsellerNeed(row: BestsellerRow, catalog: Map<string, Agent402CatalogEndpoint>) {
+  const item = catalog.get(row.slug);
+  if (!item) return row.slug.replace(/[-_.]+/g, " ").trim();
+  return `${asText(item.name)} — ${asText(item.description)}`.trim();
+}
+
+function bestsellerMatchText(row: BestsellerRow, catalog: Map<string, Agent402CatalogEndpoint>) {
+  const item = catalog.get(row.slug);
+  return item ? `${asText(item.name)} ${row.slug}`.trim() : row.slug.replace(/[-_.]+/g, " ").trim();
+}
+
+function bestsellerScore(row: BestsellerRow) {
+  let score = 25;
+  score += Math.min(40, row.buyers * 5);
+  score += Math.min(24, Math.log2(Math.max(1, row.sales)) * 5);
+  score += Math.min(18, row.revenueUsd * 18);
+  if (row.trend === "rising" || row.trend === "new") score += 12;
+  if (row.organicScore >= 0.4) score += 8;
+  return Math.round(score);
+}
+
 export async function runRevenueAudit() {
-  const [wishesResult, servicesResult] = await Promise.allSettled([
+  const [wishesResult, servicesResult, paidIntelResult, pricingResult] = await Promise.allSettled([
     fetchJson("https://agent402.tools/api/wishes"),
     fetchX402ListServices(),
+    fetchPaidAgent402Intelligence(),
+    fetchJson("https://agent402.tools/api/pricing"),
   ]);
 
   const wishes = wishesResult.status === "fulfilled" ? wishesResult.value : {};
   const services: MarketService[] = servicesResult.status === "fulfilled" ? servicesResult.value as MarketService[] : [];
-  const rows = rowsFromWishes(wishes)
+  const paidIntel = paidIntelResult.status === "fulfilled"
+    ? paidIntelResult.value
+    : { demandRadar: null, bestsellers: null, spendUsd: 0, errors: ["paid intelligence call failed"] };
+  const agent402Pricing = pricingResult.status === "fulfilled" ? pricingResult.value : {};
+  const agent402Catalog = agent402CatalogMap(agent402Pricing);
+
+  // Agent402 intentionally changed public /api/wishes into an aggregate beacon.
+  // Detailed cluster text is strategic intel and now lives behind the $0.005
+  // demand-radar endpoint. Prefer that paid feed; retain the free parser only
+  // as a backwards-compatible fallback if detailed rows ever reappear.
+  const paidDemandRows = rowsFromWishes(paidIntel.demandRadar);
+  const freeDemandRows = rowsFromWishes(wishes);
+  const rawDemandRows = paidDemandRows.length ? paidDemandRows : freeDemandRows;
+  const rows = rawDemandRows
     .map((r: AnyRow) => ({ ...r, text: asText(r?.text ?? r?.query ?? r?.wish).trim() }))
     .filter((r: AnyRow) => r.text && !Boolean(r.noise) && !looksNoisy(r.text))
     .sort((a: AnyRow, b: AnyRow) => Number(b.count || 1) - Number(a.count || 1))
     .slice(0, 100);
 
   const dynamicRoutes: RevenueProductRoute[] = [];
-  const opportunities = rows.map((row: AnyRow) => {
+  const demandOpportunities = rows.map((row: AnyRow) => {
     const text = row.text;
     const count = Math.max(1, Number(row.count || 1));
     const signalType = demandSignalType(row);
@@ -505,8 +625,6 @@ export async function runRevenueAudit() {
     if (nearThreshold) score += 15;
     if (recent) score += 10;
     score += supplyMatches === 0 ? 24 : supplyMatches === 1 ? 12 : supplyMatches <= 3 ? 3 : -8;
-    // Existing spend validates that the need can monetize even when supply exists;
-    // concentrated incumbent volume is a competitive signal, not a reason to ignore the market.
     if (supply.volumeUsd30d >= 100) score += 12;
     else if (supply.volumeUsd30d >= 10) score += 7;
     else if (supply.buyers30d >= 5) score += 4;
@@ -535,6 +653,7 @@ export async function runRevenueAudit() {
     }
 
     return {
+      source: "demand-radar",
       action,
       score,
       need: text,
@@ -554,7 +673,53 @@ export async function runRevenueAudit() {
         path: productRoute?.path || null,
       } : null,
     };
-  }).sort((a: any, b: any) => b.score - a.score);
+  });
+
+  // Bestsellers are a second, independent signal: actual distinct paying
+  // wallets and per-tool sales. This prevents the factory from becoming blind
+  // whenever the unmet-demand board is quiet or changes shape.
+  const bestRows = bestsellerRows(paidIntel.bestsellers);
+  const bestsellerOpportunities = bestRows.map((row) => {
+    const need = bestsellerNeed(row, agent402Catalog);
+    const matchText = bestsellerMatchText(row, agent402Catalog);
+    const resolved = resolveNeedProduct(matchText);
+    const score = bestsellerScore(row);
+    let action: "AUTO-LIVE" | "NEEDS-PRIMITIVE" = resolved ? "AUTO-LIVE" : "NEEDS-PRIMITIVE";
+    let productRoute: RevenueProductRoute | null = null;
+    if (resolved) {
+      const product = resolved.product;
+      const alias = `${need} paid demand`;
+      const slug = `${product.id}--proven-${cleanSlug(row.slug)}`;
+      productRoute = {
+        ...product,
+        alias,
+        slug,
+        path: `/api/p/${product.tier}/${slug}`,
+        priceUsd: REVENUE_TIER_PRICE[product.tier],
+        source: "demand",
+        demand: { text: need, count: Math.max(1, row.sales), score, signalType: "paid-bestseller", supplyMatches: 1 },
+      };
+      dynamicRoutes.push(productRoute);
+    }
+    return {
+      source: "paid-bestsellers",
+      action,
+      score,
+      need,
+      bestseller: row,
+      matchedProduct: resolved ? {
+        id: resolved.product.id,
+        title: resolved.product.title,
+        tier: resolved.product.tier,
+        priceUsd: REVENUE_TIER_PRICE[resolved.product.tier],
+        matchScore: resolved.score,
+        path: productRoute?.path || null,
+      } : null,
+    };
+  });
+
+  const opportunities = [...demandOpportunities, ...bestsellerOpportunities]
+    .sort((a: any, b: any) => b.score - a.score);
 
   const staticRoutes = staticRevenueProductRoutes();
   const routeMap = new Map<string, RevenueProductRoute>();
@@ -565,13 +730,22 @@ export async function runRevenueAudit() {
     .sort((a, b) => b.volumeUsd30d - a.volumeUsd30d || b.buyers30d - a.buyers30d)
     .slice(0, 20);
 
+  const publicWishIsBeaconOnly = Boolean(wishes && typeof wishes === "object" &&
+    Number.isFinite(Number(wishes?.distinctClusters)) && freeDemandRows.length === 0);
+
   return {
     ok: true,
     generatedAt: new Date().toISOString(),
-    mode: "AUTONOMOUS_GAP_FACTORY_V33",
+    mode: "REVENUE_MULTIPLIER_V34",
     sources: {
-      agent402Wishes: wishesResult.status === "fulfilled" ? "ok" : "unavailable",
+      agent402Wishes: wishesResult.status === "fulfilled" ? (publicWishIsBeaconOnly ? "beacon-only" : "ok") : "unavailable",
+      agent402DemandRadar: paidDemandRows.length ? "ok-paid" : "unavailable",
+      agent402Bestsellers: bestRows.length ? "ok-paid" : "unavailable",
+      agent402Pricing: pricingResult.status === "fulfilled" ? "ok-free" : "unavailable",
       x402List: servicesResult.status === "fulfilled" ? "ok" : "unavailable",
+      demandRowsExtracted: rows.length,
+      bestsellerRowsExtracted: bestRows.length,
+      intelligenceErrors: paidIntel.errors,
     },
     market: {
       servicesObserved: services.length,
@@ -580,6 +754,7 @@ export async function runRevenueAudit() {
       measuredBuyers30d: services.reduce((sum, s) => sum + s.buyers30d, 0),
       categories: categoryRollup(services),
       topServices,
+      caveat: "x402 List traction is a partial measured sample, not total x402 market volume. Paid Agent402 demand/bestseller signals are evaluated independently.",
     },
     portfolio: {
       baseFactoryCapabilities: FACTORY_CAPABILITIES.length,
@@ -592,18 +767,32 @@ export async function runRevenueAudit() {
       microRoutes: allRoutes.filter(r => r.tier === "micro").length,
       standardRoutes: allRoutes.filter(r => r.tier === "standard").length,
     },
-    opportunities: opportunities.slice(0, 50),
-    unresolved: opportunities.filter((x: any) => x.action === "NEEDS-PRIMITIVE").slice(0, 20),
-    autoLive: opportunities.filter((x: any) => x.action === "AUTO-LIVE").slice(0, 30),
+    opportunities: opportunities.slice(0, 100),
+    unresolved: opportunities.filter((x: any) => x.action === "NEEDS-PRIMITIVE").slice(0, 40),
+    autoLive: opportunities.filter((x: any) => x.action === "AUTO-LIVE").slice(0, 50),
     productRoutes: allRoutes,
+    paidDemand: {
+      demandRadar: paidIntel.demandRadar ? {
+        totalWishes: paidIntel.demandRadar?.totalWishes ?? null,
+        distinctClusters: paidIntel.demandRadar?.distinctClusters ?? null,
+        matchedClusters: paidIntel.demandRadar?.matchedClusters ?? null,
+        buildThreshold: paidIntel.demandRadar?.buildThreshold ?? null,
+      } : null,
+      bestsellerTotals: paidIntel.bestsellers?.totals ?? null,
+      bestsellers: bestRows,
+    },
     economics: {
       objective: "maximize aggregate machine-commerce gross profit across many tiny transactions",
-      targetDailyRevenueUsd: 500,
-      targetMonthlyRevenueUsd: 15000,
+      targetDailyRevenueUsd: 1000,
+      targetMonthlyRevenueUsd: 30000,
       priceFloorUsd: 0.001,
       priceTiersUsd: REVENUE_TIER_PRICE,
-      automaticIntelSpendUsd: 0,
-      note: "v33 daily scans use free demand and supply feeds. Paid intelligence remains optional until a recurring spend budget is explicitly enabled.",
+      intelligenceSpendUsdThisAudit: paidIntel.spendUsd,
+      intelligenceSpendCapUsdPerAudit: 0.01,
+      cacheHours: 6,
+      worstCaseIntelSpendUsdPerDay: 0.04,
+      worstCaseIntelSpendUsdPer30d: 1.2,
+      note: "v34 buys Agent402 demand-radar + bestsellers with a hard $0.005 cap per call. Public /api/wishes is now intentionally aggregate-only, so detailed gap discovery requires the paid feed.",
     },
   };
 }

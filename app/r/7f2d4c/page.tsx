@@ -6,9 +6,10 @@ export default function Home(){
   const [publication,setPublication]=useState<any>(null);
   const [catalog,setCatalog]=useState<any>(null);
   const [revenue,setRevenue]=useState<any>(null);
-  const [x402ListEmail,setX402ListEmail]=useState("");
-  const [x402List,setX402List]=useState<any>(null);
   const [yieldAudit,setYieldAudit]=useState<any>(null);
+  const [the402Registration,setThe402Registration]=useState<any>(null);
+  const [the402Activation,setThe402Activation]=useState<any>(null);
+  const [the402Status,setThe402Status]=useState<any>(null);
   const [busy,setBusy]=useState("");
 
   async function adminCall(path:string,method="GET"){
@@ -22,21 +23,24 @@ export default function Home(){
     catch{return {error:`HTTP ${r.status}: ${text.slice(0,300)}`}}
   }
 
-  async function submitX402List(){
-    setBusy("x402list"); setX402List(null);
-    try{
-      const r=await fetch("/api/radar/register-x402-list",{
-        method:"POST",
-        headers:{"x-admin-token":token,"accept":"application/json","content-type":"application/json"},
-        body:JSON.stringify({email:x402ListEmail}),
-        cache:"no-store",
-      });
-      const text=await r.text();
-      try{setX402List(JSON.parse(text))}
-      catch{setX402List({error:`HTTP ${r.status}: ${text.slice(0,500)}`})}
-    } finally { setBusy(""); }
+
+  async function registerThe402(){
+    setBusy("the402-register"); setThe402Registration(null);
+    try{setThe402Registration(await adminCall("/api/radar/the402/register","POST"))}
+    finally{setBusy("")}
   }
 
+  async function activateThe402(){
+    setBusy("the402-activate"); setThe402Activation(null);
+    try{setThe402Activation(await adminCall("/api/radar/the402/activate","POST"))}
+    finally{setBusy("")}
+  }
+
+  async function loadThe402Status(sweep=false){
+    setBusy("the402-status"); setThe402Status(null);
+    try{setThe402Status(await adminCall(`/api/radar/the402/status${sweep?"?sweep=1":""}`))}
+    finally{setBusy("")}
+  }
 
   async function loadYieldAudit(){
     setBusy("yield"); setYieldAudit(null);
@@ -75,7 +79,7 @@ export default function Home(){
     <div style={{fontSize:11,letterSpacing:2.2,color:"#817966"}}>PENNYRAIL</div>
     <h1 style={{fontSize:28,fontWeight:500,margin:"14px 0 8px"}}>Machine revenue.</h1>
     <p style={{color:"#777",fontSize:12,lineHeight:1.7,margin:"0 0 24px"}}>
-      50 core utilities + autonomous demand products · Base USDC · outside settlements only.
+      autonomous gap factory · active outbound sales · target ≥ $1,000/day · outside revenue only.
     </p>
 
     <section style={{...box,marginBottom:16}}>
@@ -101,7 +105,7 @@ export default function Home(){
     <section style={{...box,marginBottom:16}}>
       <div style={label}>REVENUE ENGINE · AUTONOMOUS GAP FACTORY</div>
       <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
-        PennyRail scans live agent demand + x402 supply every day, scores monetizable gaps, and immediately exposes any need it can already fulfill as a paid demand-aligned product alias. The scan spends $0.
+        PennyRail buys the itemized Agent402 Demand Radar + Bestsellers signals, compares them with live x402 supply, scores monetizable gaps, and immediately exposes needs it can fulfill. Paid intelligence is hard-capped at $0.01 per six-hour audit.
       </p>
       <button disabled={!token||!!busy} onClick={loadYieldAudit} style={primary}>
         {busy==="yield"?"Auditing machine demand…":"Audit revenue gaps"}
@@ -112,6 +116,8 @@ export default function Home(){
         <Metric title="Demand aliases" value={String(yieldAudit.portfolio.demandAliasesLive||0)}/>
         <Metric title="Auto-live gaps" value={String(yieldAudit.autoLive?.length||0)}/>
         <Metric title="Needs primitive" value={String(yieldAudit.unresolved?.length||0)}/>
+        <Metric title="Demand rows" value={String(yieldAudit.sources?.demandRowsExtracted||0)}/>
+        <Metric title="Paid bestseller rows" value={String(yieldAudit.sources?.bestsellerRowsExtracted||0)}/>
       </div>:null}
       {yieldAudit?<pre style={pre}>{JSON.stringify({
         generatedAt:yieldAudit.generatedAt,
@@ -124,27 +130,49 @@ export default function Home(){
           topCategories:yieldAudit.market.categories?.slice(0,8),
         }:null,
         portfolio:yieldAudit.portfolio,
-        autoLive:yieldAudit.autoLive?.slice(0,12),
-        unresolved:yieldAudit.unresolved?.slice(0,12),
+        economics:yieldAudit.economics,
+        paidDemand:yieldAudit.paidDemand,
+        autoLive:yieldAudit.autoLive?.slice(0,18),
+        unresolved:yieldAudit.unresolved?.slice(0,18),
       },null,2)}</pre>:null}
+    </section>
+
+    <section style={{...box,marginBottom:16}}>
+      <div style={label}>OUTBOUND SALES · THE402</div>
+      <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
+        PennyRail can sell fixed-price services in the402 catalog and subscribe to real-time request.created pushes. Matching requests are bid automatically and winning jobs are fulfilled through the existing Revenue Engine. Registration costs at most $0.01 once; listing, notifications, bidding with the API key and fulfillment are free platform API calls.
+      </p>
+      <button disabled={!token||!!busy||Boolean(the402Registration?.ok)} onClick={registerThe402} style={primary}>
+        {busy==="the402-register"?"Registering provider…":"1 · Register the402 provider · max $0.01"}
+      </button>
+      <button disabled={!token||!!busy} onClick={activateThe402} style={button}>
+        {busy==="the402-activate"?"Activating sales…":"2 · Activate listings + auto-bidding"}
+      </button>
+      <button disabled={!token||!!busy} onClick={()=>loadThe402Status(false)} style={button}>
+        {busy==="the402-status"?"Checking…":"Status + earnings"}
+      </button>
+      <button disabled={!token||!!busy} onClick={()=>loadThe402Status(true)} style={button}>
+        Sweep requests now
+      </button>
+      {the402Registration?.ok?<div style={{fontSize:11,lineHeight:1.7,color:"#d0c7b4",marginTop:14}}>
+        Registration complete. Copy the three returned environment variables into Vercel Production, redeploy once, then click <b>Activate listings + auto-bidding</b>. Do not commit the API key or webhook secret.
+      </div>:null}
+      {the402Registration?<pre style={pre}>{JSON.stringify(the402Registration,null,2)}</pre>:null}
+      {the402Activation?<pre style={pre}>{JSON.stringify(the402Activation,null,2)}</pre>:null}
+      {the402Status?<pre style={pre}>{JSON.stringify(the402Status,null,2)}</pre>:null}
     </section>
 
     <section style={{...box,marginBottom:16}}>
       <div style={label}>DISTRIBUTION · X402 LIST</div>
       <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
-        Submit all 50 paid PennyRail utilities to x402 List. Free-host review fee is capped in code at $1.00 USDC on Base; anything higher is refused without payment.
+        Submitted successfully: 50/50 paid endpoints found, zero probe errors, $1 review fee paid. Submission 1552c878-c03b-4c33-b788-5db3e96f54fc is pending human review. Do not resubmit while pending.
       </p>
-      <input type="email" value={x402ListEmail} onChange={e=>setX402ListEmail(e.target.value)} placeholder="Review contact email" style={input}/>
-      <button disabled={!token||!x402ListEmail||!!busy} onClick={submitX402List} style={primary}>
-        {busy==="x402list"?"Submitting + paying…":"Submit to x402 List · max $1"}
-      </button>
       <a href="https://x402-list.com" target="_blank" rel="noreferrer" style={link}>Open x402 List ↗</a>
-      {x402List?<pre style={pre}>{JSON.stringify(x402List,null,2)}</pre>:null}
     </section>
 
     <section style={box}>
       <div style={label}>CONTROL</div>
-      <input value={token} onChange={e=>setToken(e.target.value)} placeholder="RADAR_ADMIN_TOKEN" style={input}/>
+      <input value={token} onChange={(e:any)=>setToken(e.target.value)} placeholder="RADAR_ADMIN_TOKEN" style={input}/>
       <button disabled={!token||!!busy} onClick={publish} style={primary}>
         {busy==="publish"?"Publishing inventory…":"Publish inventory"}
       </button>
@@ -163,7 +191,7 @@ export default function Home(){
     },null,2)}</pre>:null}
 
     <section style={{...box,marginTop:16,color:"#777",fontSize:11,lineHeight:1.7}}>
-      Revenue Engine live: daily demand/supply audit + autonomous paid product aliases. Distribution live: x402scan + Agent402 index + true402 + x402 List review. Agent402 revenue data refreshes hourly from Base USDC settlement logs.
+      Revenue Engine live: paid gap intelligence + proven-buyer signals + autonomous product aliases. Outbound layer: the402 direct catalog + real-time request bidding when configured. Distribution: x402scan + Agent402 index + true402 + x402 List review.
     </section>
   </main>
 }
