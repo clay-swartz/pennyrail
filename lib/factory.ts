@@ -50,6 +50,28 @@ export const FACTORY_CAPABILITIES: FactoryCapability[] = [
   { id: "github.repo", title: "GitHub repo metadata", description: "Return public GitHub repository metadata.", keywords: ["github repo info", "repository metadata", "github stars", "github repository"], inputHint: "owner/repo", network: true },
   { id: "fx.convert", title: "Currency conversion", description: "Convert currency using Frankfurter/ECB reference rates.", keywords: ["currency convert", "exchange rate", "fx conversion", "convert usd eur"], inputHint: "{amount,from,to}", network: true },
   { id: "country.lookup", title: "Country code lookup", description: "Resolve ISO country code to basic public country metadata.", keywords: ["country code lookup", "iso country", "country metadata", "country from code"], inputHint: "2 or 3 letter country code", network: true },
+  { id: "text.lowercase", title: "Lowercase text", description: "Convert text to lowercase.", keywords: ["lowercase text", "convert to lowercase", "lower case"], inputHint: "string" },
+  { id: "text.uppercase", title: "Uppercase text", description: "Convert text to uppercase.", keywords: ["uppercase text", "convert to uppercase", "upper case"], inputHint: "string" },
+  { id: "text.reverse", title: "Reverse text", description: "Reverse Unicode characters in text.", keywords: ["reverse text", "reverse string", "string backwards"], inputHint: "string" },
+  { id: "text.remove-empty-lines", title: "Remove empty lines", description: "Remove blank lines while preserving remaining line order.", keywords: ["remove empty lines", "remove blank lines", "clean blank lines"], inputHint: "string or string[]" },
+  { id: "text.char-count", title: "Character count", description: "Count Unicode characters, code units, lines and bytes in UTF-8 text.", keywords: ["character count", "count characters", "string length", "text length"], inputHint: "string" },
+
+  { id: "json.pick", title: "Pick JSON fields", description: "Return selected top-level fields from an object.", keywords: ["pick json fields", "select object keys", "keep json keys"], inputHint: "{value,keys:string[]}" },
+  { id: "json.omit", title: "Omit JSON fields", description: "Remove selected top-level fields from an object.", keywords: ["omit json fields", "remove object keys", "delete json keys"], inputHint: "{value,keys:string[]}" },
+
+  { id: "url.domain", title: "Extract URL domain", description: "Return hostname and registrable-looking domain components from a URL.", keywords: ["extract domain", "url domain", "hostname from url", "domain from url"], inputHint: "string URL" },
+
+  { id: "number.round", title: "Round number", description: "Round a number to a requested number of decimal places.", keywords: ["round number", "decimal places", "round decimals"], inputHint: "{value,decimals}" },
+  { id: "number.sum", title: "Sum numbers", description: "Sum an array of finite numeric values.", keywords: ["sum numbers", "add numbers", "total numbers"], inputHint: "number[]" },
+
+  { id: "time.diff-seconds", title: "Time difference", description: "Calculate signed seconds and milliseconds between two parseable dates.", keywords: ["time difference", "seconds between dates", "date difference", "duration between dates"], inputHint: "{from,to}" },
+
+  { id: "encoding.url-encode", title: "URL encode", description: "Percent-encode UTF-8 text with encodeURIComponent semantics.", keywords: ["url encode", "percent encode", "encode uri component"], inputHint: "string" },
+  { id: "encoding.url-decode", title: "URL decode", description: "Decode percent-encoded UTF-8 text with decodeURIComponent semantics.", keywords: ["url decode", "percent decode", "decode uri component"], inputHint: "string" },
+
+  { id: "validation.email", title: "Validate email shape", description: "Check whether a string has a conventional email-address shape.", keywords: ["validate email", "email valid", "email address validation"], inputHint: "string" },
+  { id: "validation.uuid", title: "Validate UUID", description: "Validate UUID versions 1-8 and return normalized lowercase form.", keywords: ["validate uuid", "uuid valid", "check uuid"], inputHint: "string" },
+
 ];
 
 function asText(input: any) {
@@ -129,10 +151,32 @@ export async function runFactoryOperation(operation: string, input: any) {
       const max = Math.max(0, Math.min(1_000_000, Number(input?.max ?? 1000)));
       return { result: [...text].slice(0,max).join(""), originalCharacters: [...text].length, max };
     }
+    case "text.lowercase": return { result: asText(input).toLowerCase() };
+    case "text.uppercase": return { result: asText(input).toUpperCase() };
+    case "text.reverse": return { result: [...asText(input)].reverse().join("") };
+    case "text.remove-empty-lines": return { lines: asLines(input).filter(line => line.trim().length > 0) };
+    case "text.char-count": {
+      const text = asText(input);
+      return { characters: [...text].length, codeUnits: text.length, lines: text ? text.split(/\r?\n/).length : 0, utf8Bytes: Buffer.byteLength(text, "utf8") };
+    }
     case "json.flatten": return { flattened: flatten(input) };
     case "json.get": return { value: getPath(input?.value, asText(input?.path)), found: getPath(input?.value, asText(input?.path)) !== undefined };
     case "json.keys": return { paths: Object.keys(flatten(input)).sort() };
     case "json.sort-keys": return { value: sortKeys(input) };
+    case "json.pick": {
+      const value = input?.value;
+      const keys = Array.isArray(input?.keys) ? input.keys.map(asText) : [];
+      if (!value || Array.isArray(value) || typeof value !== "object") throw new Error("value must be an object");
+      const out: AnyObj = {}; for (const key of keys) if (Object.prototype.hasOwnProperty.call(value,key)) out[key]=value[key];
+      return { value: out };
+    }
+    case "json.omit": {
+      const value = input?.value;
+      const keys = new Set(Array.isArray(input?.keys) ? input.keys.map(asText) : []);
+      if (!value || Array.isArray(value) || typeof value !== "object") throw new Error("value must be an object");
+      const out: AnyObj = {}; for (const [key,val] of Object.entries(value)) if (!keys.has(key)) out[key]=val;
+      return { value: out };
+    }
     case "url.parse": {
       const u = new URL(asText(input));
       return { protocol:u.protocol, username:u.username, password:u.password?"[redacted]":"", hostname:u.hostname, port:u.port, pathname:u.pathname, search:u.search, hash:u.hash, origin:u.origin };
@@ -163,6 +207,11 @@ export async function runFactoryOperation(operation: string, input: any) {
       }
       return { query: params.toString() };
     }
+    case "url.domain": {
+      const u = new URL(asText(input));
+      const labels = u.hostname.toLowerCase().split(".").filter(Boolean);
+      return { hostname: u.hostname.toLowerCase(), labels, suffix: labels.length ? labels.at(-1) : null, domainApprox: labels.length >= 2 ? labels.slice(-2).join(".") : u.hostname.toLowerCase() };
+    }
     case "number.stats": return numericStats(Array.isArray(input) ? input : input?.values || []);
     case "number.percent-change": {
       const from = Number(input?.from), to = Number(input?.to);
@@ -176,6 +225,16 @@ export async function runFactoryOperation(operation: string, input: any) {
       if (min>max) throw new Error("min cannot exceed max");
       return { value: Math.min(max,Math.max(min,value)) };
     }
+    case "number.round": {
+      const value=Number(input?.value ?? input); const decimals=Math.max(0,Math.min(15,Math.trunc(Number(input?.decimals ?? 0))));
+      if (!Number.isFinite(value)) throw new Error("value must be a finite number");
+      const factor=10**decimals; return { value: Math.round((value + Number.EPSILON)*factor)/factor, decimals };
+    }
+    case "number.sum": {
+      const values=Array.isArray(input)?input:input?.values; if(!Array.isArray(values)) throw new Error("input must be a number array");
+      const nums=values.map(Number); if(!nums.every(Number.isFinite)) throw new Error("all values must be finite numbers");
+      return { count: nums.length, sum: nums.reduce((a,b)=>a+b,0) };
+    }
     case "time.to-iso": {
       const raw = input?.value ?? input;
       const d = typeof raw === "number" ? new Date(Math.abs(raw) < 1e12 ? raw*1000 : raw) : new Date(asText(raw));
@@ -187,12 +246,27 @@ export async function runFactoryOperation(operation: string, input: any) {
       if (!Number.isFinite(d.getTime())) throw new Error("invalid date");
       return { unixSeconds: Math.floor(d.getTime()/1000), unixMilliseconds: d.getTime(), iso: d.toISOString() };
     }
+    case "time.diff-seconds": {
+      const from=new Date(asText(input?.from)); const to=new Date(asText(input?.to));
+      if(!Number.isFinite(from.getTime())||!Number.isFinite(to.getTime())) throw new Error("from and to must be parseable dates");
+      const milliseconds=to.getTime()-from.getTime(); return { milliseconds, seconds: milliseconds/1000, from: from.toISOString(), to: to.toISOString() };
+    }
     case "encoding.base64-encode": return { result: Buffer.from(asText(input), "utf8").toString("base64") };
     case "encoding.base64-decode": return { result: Buffer.from(asText(input).replace(/-/g,"+").replace(/_/g,"/"), "base64").toString("utf8") };
     case "encoding.hex-encode": return { result: Buffer.from(asText(input), "utf8").toString("hex") };
     case "encoding.hex-decode": {
       const text = asText(input).trim(); if (!/^(?:[0-9a-fA-F]{2})*$/.test(text)) throw new Error("invalid even-length hexadecimal string");
       return { result: Buffer.from(text, "hex").toString("utf8") };
+    }
+    case "encoding.url-encode": return { result: encodeURIComponent(asText(input)) };
+    case "encoding.url-decode": return { result: decodeURIComponent(asText(input)) };
+    case "validation.email": {
+      const value=asText(input).trim(); const valid=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+      return { value, valid };
+    }
+    case "validation.uuid": {
+      const value=asText(input).trim(); const valid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+      return { value, valid, normalized: valid ? value.toLowerCase() : null };
     }
     case "crypto.sha256": return { sha256: createHash("sha256").update(asText(input)).digest("hex") };
     case "dns.a": {
