@@ -10,7 +10,9 @@ export default function Home(){
   async function call(path:string,method="GET"){
     const r=await fetch(path,{method,headers:{"x-admin-token":token,"accept":"application/json"},cache:"no-store"});
     const text=await r.text();
-    try{return JSON.parse(text)}catch{return {error:`HTTP ${r.status}: ${text.slice(0,300)}`}}
+    let body:any=null;
+    try{body=text?JSON.parse(text):null}catch{}
+    return body ?? {error:`HTTP ${r.status}: ${text.slice(0,500)}`};
   }
 
   async function runFactory(){
@@ -26,15 +28,17 @@ export default function Home(){
 
     <section style={box}>
       <input value={token} onChange={e=>setToken(e.target.value)} placeholder="RADAR_ADMIN_TOKEN" style={input}/>
-      <button disabled={!token||busy} onClick={runFactory} style={primary}>{busy?"Buying live demand + building shortlist…":"Run factory"}</button>
-      <button disabled={!token} onClick={list} style={button}>List / refresh seller</button>
+      <button disabled={!token||busy} onClick={runFactory} style={primary}>{busy?"Buying live demand…":"Run factory"}</button>
+      <button disabled={!token||busy} onClick={list} style={button}>List / refresh seller</button>
     </section>
 
-    {scan?.error?<pre style={errorBox}>{JSON.stringify(scan,null,2)}</pre>:null}
+    {busy?<section style={{...box,marginTop:16,color:"#aaa",fontSize:12}}>Buying live demand intelligence and matching it to PennyRail capabilities…</section>:null}
 
-    {rows.length?<section style={{...box,marginTop:16}}>
+    {!busy&&scan?.error?<pre style={errorBox}>{JSON.stringify(scan,null,2)}</pre>:null}
+
+    {!busy&&rows.length?<section style={{...box,marginTop:16}}>
       <div style={{fontSize:11,color:"#777",marginBottom:14}}>
-        ${(scan.intelSpendUsd||0).toFixed(3)} intel · {scan.factory?.autoLive||0} auto-live · {scan.factory?.needsBuilder||0} need new recipe
+        ${(Number(scan.intelSpendUsd)||0).toFixed(3)} intel · {scan.factory?.autoLive||0} auto-live · {scan.factory?.needsBuilder||0} need new recipe
       </div>
       {rows.map((r:any,i:number)=><div key={i} style={{padding:"14px 0",borderTop:i?"1px solid #23262b":"none",display:"grid",gridTemplateColumns:"110px 1fr",gap:16}}>
         <div><span style={{fontSize:10,padding:"4px 7px",border:"1px solid #3a3d42",borderRadius:999,color:r.status==="AUTO-LIVE"?"#d8cba7":"#8e9198"}}>{r.status}</span><div style={{fontSize:10,color:"#666",marginTop:7}}>score {r.score}</div></div>
@@ -42,7 +46,12 @@ export default function Home(){
       </div>)}
     </section>:null}
 
-    {!scan&&<section style={{...box,marginTop:16,color:"#777",fontSize:12,lineHeight:1.7}}>No factory run yet.</section>}
+    {!busy&&scan&&!scan.error&&!rows.length?<section style={{...box,marginTop:16}}>
+      <div style={{fontSize:12,color:"#c8bea5",marginBottom:10}}>Factory call completed, but no rows were extracted.</div>
+      <pre style={pre}>{JSON.stringify(scan,null,2)}</pre>
+    </section>:null}
+
+    {!busy&&!scan?<section style={{...box,marginTop:16,color:"#777",fontSize:12,lineHeight:1.7}}>No factory run yet.</section>:null}
 
     {registration?<pre style={pre}>{JSON.stringify(registration,null,2)}</pre>:null}
   </main>
@@ -52,5 +61,5 @@ const box={border:"1px solid #23262b",background:"#0d0f12",padding:18} as const;
 const input={width:"100%",boxSizing:"border-box",padding:11,background:"#090b0e",border:"1px solid #30333a",color:"#ddd",marginBottom:10} as const;
 const button={padding:"10px 13px",marginRight:8,border:"1px solid #34373d",background:"#15181d",color:"#bbb",cursor:"pointer"} as const;
 const primary={...button,background:"#d9d0b9",color:"#111",fontWeight:700} as const;
-const pre={marginTop:16,padding:14,background:"#08090b",border:"1px solid #23262b",fontSize:10,whiteSpace:"pre-wrap",overflow:"auto"} as const;
+const pre={marginTop:16,padding:14,background:"#08090b",border:"1px solid #23262b",fontSize:10,whiteSpace:"pre-wrap",overflow:"auto",maxHeight:500} as const;
 const errorBox={...pre,border:"1px solid #5a3030",color:"#ddb3b3"} as const;
