@@ -70,12 +70,37 @@ function normalizeRow(row: AnyRow) {
   };
 }
 
+const TRANSIENT_UPSTREAM = new Set([502, 503, 504]);
+
+async function buyDemandRadarWithRetry(pf: typeof fetch) {
+  const url = "https://agent402.tools/api/demand-radar?sort=count&limit=30&minCount=1";
+  const attempts: Array<{ attempt: number; status: number; statusText: string }> = [];
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const response = await pf(url);
+    attempts.push({
+      attempt,
+      status: response.status,
+      statusText: response.statusText,
+    });
+
+    if (response.ok || !TRANSIENT_UPSTREAM.has(response.status) || attempt === 3) {
+      return { response, attempts };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 700 * attempt));
+  }
+
+  throw new Error("Demand Radar retry loop exited unexpectedly.");
+}
+
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   try {
     const pf = await paidFetch();
-    const demandRes = await pf("https://agent402.tools/api/demand-radar?sort=count&limit=30&minCount=1");
+    const purchase = await buyDemandRadarWithRetry(pf);
+    const demandRes = purchase.response;
     const rawText = await demandRes.text();
     let rawDemand: any = null;
     try { rawDemand = rawText ? JSON.parse(rawText) : null; } catch {}
@@ -88,6 +113,8 @@ export async function GET(req: NextRequest) {
         contentType: demandRes.headers.get("content-type") || null,
         demand: rawDemand,
         preview: rawDemand ? null : rawText.slice(0, 1000),
+        retries: purchase.attempts,
+        upstream: "Agent402 Demand Radar",
       }, { status: 502 });
     }
 
@@ -145,6 +172,7 @@ export async function GET(req: NextRequest) {
         rowSource: found.rowSource,
         rawBodyBytes: rawText.length,
         rawPreview: JSON.stringify(rawDemand)?.slice(0, 1600) || rawText.slice(0, 1600),
+        purchaseAttempts: purchase.attempts,
       },
       note: ranked.length
         ? "Factory scan completed from paid demand intelligence."
