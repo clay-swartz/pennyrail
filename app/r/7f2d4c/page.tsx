@@ -6,6 +6,8 @@ export default function Home(){
   const [publication,setPublication]=useState<any>(null);
   const [catalog,setCatalog]=useState<any>(null);
   const [revenue,setRevenue]=useState<any>(null);
+  const [x402ListEmail,setX402ListEmail]=useState("");
+  const [x402List,setX402List]=useState<any>(null);
   const [busy,setBusy]=useState("");
 
   async function adminCall(path:string,method="GET"){
@@ -17,6 +19,21 @@ export default function Home(){
     const text=await r.text();
     try{return JSON.parse(text)}
     catch{return {error:`HTTP ${r.status}: ${text.slice(0,300)}`}}
+  }
+
+  async function submitX402List(){
+    setBusy("x402list"); setX402List(null);
+    try{
+      const r=await fetch("/api/radar/register-x402-list",{
+        method:"POST",
+        headers:{"x-admin-token":token,"accept":"application/json","content-type":"application/json"},
+        body:JSON.stringify({email:x402ListEmail}),
+        cache:"no-store",
+      });
+      const text=await r.text();
+      try{setX402List(JSON.parse(text))}
+      catch{setX402List({error:`HTTP ${r.status}: ${text.slice(0,500)}`})}
+    } finally { setBusy(""); }
   }
 
   async function refreshRevenue(){
@@ -72,6 +89,19 @@ export default function Home(){
       {revenue?.error?<pre style={pre}>{JSON.stringify(revenue,null,2)}</pre>:null}
     </section>
 
+    <section style={{...box,marginBottom:16}}>
+      <div style={label}>DISTRIBUTION · X402 LIST</div>
+      <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
+        Submit all 50 paid PennyRail utilities to x402 List. Free-host review fee is capped in code at $1.00 USDC on Base; anything higher is refused without payment.
+      </p>
+      <input type="email" value={x402ListEmail} onChange={e=>setX402ListEmail(e.target.value)} placeholder="Review contact email" style={input}/>
+      <button disabled={!token||!x402ListEmail||!!busy} onClick={submitX402List} style={primary}>
+        {busy==="x402list"?"Submitting + paying…":"Submit to x402 List · max $1"}
+      </button>
+      <a href="https://x402-list.com" target="_blank" rel="noreferrer" style={link}>Open x402 List ↗</a>
+      {x402List?<pre style={pre}>{JSON.stringify(x402List,null,2)}</pre>:null}
+    </section>
+
     <section style={box}>
       <div style={label}>CONTROL</div>
       <input value={token} onChange={e=>setToken(e.target.value)} placeholder="RADAR_ADMIN_TOKEN" style={input}/>
@@ -93,7 +123,7 @@ export default function Home(){
     },null,2)}</pre>:null}
 
     <section style={{...box,marginTop:16,color:"#777",fontSize:11,lineHeight:1.7}}>
-      Distribution live: Agent402 + true402. OpenAPI is prepared for x402scan discovery. Agent402 revenue data refreshes hourly from Base USDC settlement logs.
+      Distribution live: x402scan + Agent402 index + true402. x402 List submission is available above. Agent402 revenue data refreshes hourly from Base USDC settlement logs.
     </section>
   </main>
 }
