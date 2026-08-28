@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { FACTORY_CAPABILITIES } from "@/lib/factory";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
       `${origin}/api/tools/json-canonicalize`,
       `${origin}/api/tools/text-stats`,
       `${origin}/api/tools/strip-tracking`,
-      `${origin}/api/factory/run`,
+      ...FACTORY_CAPABILITIES.map(c => `${origin}/api/f/${c.id}`),
     ],
     payment: {
       x402: {
@@ -32,17 +33,16 @@ export async function GET(req: NextRequest) {
         currency: "USDC",
         networks: [network],
         primaryNetwork: network,
-        priceRange: "$0.001-$0.003",
+        priceRange: "$0.001",
         payTo,
         payToName: "PennyRail",
         nonCustodial: true,
       },
     },
     capabilities: {
-      tools: 4,
+      tools: FACTORY_CAPABILITIES.length + 3,
       categories: [
-        { key: "utility", label: "Deterministic utilities", tools: 3, priceRange: "$0.001" },
-        { key: "factory", label: "Dynamic micro-capability factory", tools: 1, priceRange: "$0.003" },
+        { key: "utility", label: "Deterministic utilities", tools: FACTORY_CAPABILITIES.length + 3, priceRange: "$0.001" },
       ],
     },
     discovery: {
