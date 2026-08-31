@@ -3,6 +3,7 @@ import { FACTORY_CAPABILITIES } from "@/lib/factory";
 import { staticRevenueProductRoutes, type RevenueProductRoute } from "@/lib/revenue-engine";
 import { getCachedRevenueAudit } from "@/lib/revenue-engine-cache";
 import { BAZAAR_WEB_SEARCH_PATH } from "@/lib/x402-bazaar";
+import { GAP_ARBITRAGE_PRODUCTS } from "@/lib/gap-arbitrage-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -42,80 +43,63 @@ export async function GET(req: NextRequest) {
   const routerTiers = ["nano","mini","network","micro","intel","standard","premium","skill","analyst"];
 
   return NextResponse.json({
-    spec: "agent402-service-manifest/1",
-    x402Version: 2,
-    version: 41,
-    name: "PennyRail",
-    summary: "Autonomous x402 demand sniper: watches paid and unmet agent demand, auto-publishes matching capabilities, and sells high-frequency machine work at the facilitator floor or below competing prices where possible.",
-    homepage: origin,
-    resources: [
-      ...DEMAND_SNIPERS.map(item => `${origin}${item.path}`),
+    spec:"agent402-service-manifest/1",
+    x402Version:2,
+    version:42,
+    name:"PennyRail",
+    summary:"Autonomous x402 gap-arbitrage router: watches what agents buy or fail to find, then sells exact-match machine services at the facilitator floor or below observed competing prices.",
+    homepage:origin,
+    resources:[
+      ...GAP_ARBITRAGE_PRODUCTS.map(p=>`${origin}${p.path}`),
+      ...DEMAND_SNIPERS.map(item=>`${origin}${item.path}`),
       `${origin}${BAZAAR_WEB_SEARCH_PATH}`,
       `${origin}/api/tools/json-canonicalize`,
       `${origin}/api/tools/text-stats`,
       `${origin}/api/tools/strip-tracking`,
-      ...FACTORY_CAPABILITIES.map(c => `${origin}/api/f/${c.id}`),
-      ...revenueRoutes.map(p => `${origin}${p.path}`),
-      ...routerTiers.map(tier => `${origin}/api/router/execute/${tier}`),
+      ...FACTORY_CAPABILITIES.map(c=>`${origin}/api/f/${c.id}`),
+      ...revenueRoutes.map(p=>`${origin}${p.path}`),
+      ...routerTiers.map(tier=>`${origin}/api/router/execute/${tier}`),
     ],
-    payment: {
-      x402: {
-        version: 2,
-        currency: "USDC",
-        networks: [network],
-        primaryNetwork: network,
-        priceRange: "$0.001-$0.20",
-        payTo,
-        payToName: "PennyRail",
-        nonCustodial: true,
-      },
+    payment:{x402:{version:2,currency:"USDC",networks:[network],primaryNetwork:network,priceRange:"$0.001-$0.20",payTo,payToName:"PennyRail",nonCustodial:true}},
+    capabilities:{
+      strategy:"paid-gap-arbitrage-and-price-sniping",
+      demandRadar:process.env.PENNYRAIL_ENABLE_DEMAND_RADAR==="1"?"enabled":"disabled-needs-production-env",
+      paidGapFrontdoors:GAP_ARBITRAGE_PRODUCTS.length,
+      exactMatchFrontdoors:DEMAND_SNIPERS.length,
+      dynamicDemandRoutes:revenueRoutes.filter((r:any)=>r.source==="demand").length,
+      totalAdvertisedResources:GAP_ARBITRAGE_PRODUCTS.length+DEMAND_SNIPERS.length+4+FACTORY_CAPABILITIES.length+revenueRoutes.length+routerTiers.length,
     },
-    capabilities: {
-      strategy: "gap-arbitrage-and-price-sniping",
-      demandRadar: process.env.PENNYRAIL_ENABLE_DEMAND_RADAR === "1" ? "enabled" : "disabled-needs-production-env",
-      exactMatchFrontdoors: DEMAND_SNIPERS.length,
-      dynamicDemandRoutes: revenueRoutes.filter((r:any)=>r.source==="demand").length,
-      totalAdvertisedResources: DEMAND_SNIPERS.length + 4 + FACTORY_CAPABILITIES.length + revenueRoutes.length + routerTiers.length,
-    },
-    routing: {
-      featured: [
-        ...DEMAND_SNIPERS.map(item => ({
-          resource: `${origin}${item.path}`,
-          method: "POST",
-          priceUsd: item.priceUsd,
-          intents: item.intents,
-          description: item.description,
+    routing:{
+      featured:[
+        ...GAP_ARBITRAGE_PRODUCTS.map(p=>({
+          resource:`${origin}${p.path}`,
+          method:"POST",
+          priceUsd:p.priceUsd,
+          intents:p.intents,
+          description:p.description,
+          strategy:"observed-paid-gap",
         })),
-        ...revenueRoutes
-          .filter((route:any) => route.source === "demand" && route.demand?.text)
-          .slice(0, 50)
-          .map((route:any) => ({
-            resource: `${origin}${route.path}`,
-            method: "POST",
-            priceUsd: route.priceUsd,
-            intents: [route.demand.text, route.alias, route.title, route.id].filter(Boolean),
-            description: `${route.title}: ${route.description} Demand signal: ${route.demand.text}`,
-            demand: {
-              count: route.demand.count,
-              score: route.demand.score,
-              signalType: route.demand.signalType,
-              supplyMatches: route.demand.supplyMatches,
-            },
-          })),
+        ...DEMAND_SNIPERS.map(item=>({resource:`${origin}${item.path}`,method:"POST",priceUsd:item.priceUsd,intents:item.intents,description:item.description})),
+        ...revenueRoutes.filter((route:any)=>route.source==="demand"&&route.demand?.text).slice(0,50).map((route:any)=>({
+          resource:`${origin}${route.path}`,
+          method:"POST",
+          priceUsd:route.priceUsd,
+          intents:[route.demand.text,route.alias,route.title,route.id].filter(Boolean),
+          description:`${route.title}: ${route.description} Demand signal: ${route.demand.text}`,
+          demand:{count:route.demand.count,score:route.demand.score,signalType:route.demand.signalType,supplyMatches:route.demand.supplyMatches},
+        })),
       ],
     },
-    discovery: {
-      spec: "x402-discovery/1",
-      openapi: `${origin}/openapi.json`,
-      router: {
-        find: `${origin}/api/router/find`,
-        quote: `${origin}/api/router/quote`,
-        executePattern: `${origin}/api/router/execute/{tier}`,
-        guidance: "Exact-match demand-sniper doors are cheapest for common tasks. FIND/QUOTE remain free for the long tail. Unmet-demand aliases are refreshed automatically.",
+    discovery:{
+      spec:"x402-discovery/1",
+      openapi:`${origin}/openapi.json`,
+      router:{
+        find:`${origin}/api/router/find`,
+        quote:`${origin}/api/router/quote`,
+        executePattern:`${origin}/api/router/execute/{tier}`,
+        guidance:"Prefer exact paid-gap front doors when the task matches. FIND/QUOTE remain free for the long tail. Unmet-demand aliases refresh automatically.",
       },
     },
-    mcp: { remoteConnector: `${origin}/api/mcp`, package: null },
-  }, {
-    headers: { "cache-control": "public, max-age=60, s-maxage=300" },
-  });
+    mcp:{remoteConnector:`${origin}/api/mcp`,package:null},
+  },{headers:{"cache-control":"public, max-age=60, s-maxage=300"}});
 }
