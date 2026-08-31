@@ -13,7 +13,6 @@ function publicOrigin() {
   return "https://pennyrail.vercel.app";
 }
 
-
 async function republishAgent402() {
   try {
     const response = await fetch("https://agent402.tools/api/index/register", {
@@ -30,6 +29,7 @@ async function republishAgent402() {
     return {ok:false,error:error instanceof Error?error.message:String(error)};
   }
 }
+
 const cachedOutboundSweep = unstable_cache(async () => {
   const participantId = process.env.THE402_PARTICIPANT_ID?.trim() || "";
   const apiKey = process.env.THE402_API_KEY?.trim() || "";
@@ -54,9 +54,9 @@ const cachedOutboundSweep = unstable_cache(async () => {
   }
 }, ["pennyrail-the402-outbound-v34"], { revalidate: 900 });
 
-// Safe for Vercel/GitHub cron. Paid intelligence is cached for six hours and
-// hard-capped at $0.01 per refresh. Outbound marketplace maintenance/sweeping
-// is cached for 15 minutes so repeated public hits cannot hammer provider APIs.
+// v41 runs hourly. Revenue intelligence itself is cached for one hour and
+// hard-capped at $0.01/refresh. Agent402 re-registration is free and intentionally
+// runs each cron so new exact-match doors/demand aliases are picked up quickly.
 export async function GET() {
   const [audit, outbound, agent402] = await Promise.all([
     getCachedRevenueAudit(),
