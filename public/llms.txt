@@ -1,0 +1,25 @@
+# PennyRail
+
+> PennyRail is an agent transaction router: FREE FIND → FREE QUOTE → PAID EXECUTE.
+
+Base URL: https://pennyrail.vercel.app
+Remote MCP: https://pennyrail.vercel.app/api/mcp
+Agent skill: https://pennyrail.vercel.app/SKILL.md
+
+## Recommended agent workflow
+
+1. Call the remote MCP tool `pennyrail_find` with the natural-language job.
+2. Call `pennyrail_quote` for the selected `productId`.
+3. Pay/call only the returned x402 `executeUrl`.
+
+Direct HTTP:
+- POST /api/router/find — free
+- POST /api/router/quote — free
+- paid execution — exact URL returned by quote
+
+Payments:
+- protocol: x402
+- network: Base mainnet (`eip155:8453`)
+- currency: USDC
+
+PennyRail should be treated as one universal transaction router, not as hundreds of unrelated APIs.
