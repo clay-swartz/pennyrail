@@ -121,7 +121,7 @@ export default function Home(){
     <div style={{fontSize:11,letterSpacing:2.2,color:"#817966"}}>PENNYRAIL</div>
     <h1 style={{fontSize:28,fontWeight:500,margin:"14px 0 8px"}}>Machine revenue.</h1>
     <p style={{color:"#777",fontSize:12,lineHeight:1.7,margin:"0 0 24px"}}>
-      autonomous yield engine · proven demand + upstream broker · target ≥ $1,000/day · outside revenue only.
+      transaction router · free intent → paid execution · target ≥ $1,000/day · outside revenue only.
     </p>
 
     <section style={{...box,marginBottom:16}}>
@@ -166,6 +166,16 @@ export default function Home(){
         OpenAI revenue broker: <b style={{color:upstreams.openAi?"#b8c9a8":"#d2aa83"}}>{upstreams.openAi?"configured ✓":"needs OPENAI_API_KEY"}</b>
       </div>:null}
       {yieldAudit?<JsonBox value={auditDisplay} copyValue={yieldAudit} copyLabel="Copy full JSON"/>:null}
+    </section>
+
+    <section style={{...box,marginBottom:16}}>
+      <div style={label}>TRANSACTION ROUTER · REVENUE-FIRST</div>
+      <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
+        One free buyer interface over the full PennyRail portfolio: FIND → QUOTE → one paid EXECUTE. Ambiguous intent is rejected before execution so PennyRail does not charge for guessed tools.
+      </p>
+      <a href="/api/router/find?q=web%20search" target="_blank" rel="noreferrer" style={link}>Test free find ↗</a>
+      <a href="/openapi.json" target="_blank" rel="noreferrer" style={link}>Router OpenAPI ↗</a>
+      <div style={{fontSize:10,color:"#666",marginTop:10}}>Machine entrypoints: /api/router/find · /api/router/quote · /api/router/execute/&lt;tier&gt;</div>
     </section>
 
     <section style={{...box,marginBottom:16}}>
@@ -225,7 +235,7 @@ export default function Home(){
     {catalog?<JsonBox value={{capabilityCount:catalog.capabilityCount,priceUsdPerRun:catalog.priceUsdPerRun,firstFive:catalog.capabilities?.slice(0,5)}}/>:null}
 
     <section style={{...box,marginTop:16,color:"#777",fontSize:11,lineHeight:1.7}}>
-      Revenue Engine live: exact paid-demand mappings + market-aligned micro-prices + optional OpenAI upstream broker. Outbound layer: the402 direct catalog + real-time request bidding when configured. Distribution: x402scan + Agent402 index + true402 + x402 List review.
+      Transaction Router live: free intent discovery + free quote + one paid execution tier over exact paid-demand mappings, market-aligned micro-prices and the OpenAI broker. Distribution: x402 discovery/OpenAPI + Agent402 index + true402 + x402 List review; the402 remains additive when its provider registration reopens.
     </section>
   </main>
 }
