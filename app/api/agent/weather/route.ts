@@ -2,7 +2,7 @@ import { createRouterFrontdoor } from "@/lib/agent-frontdoors";
 export const POST = createRouterFrontdoor({
   productId: "weather.current",
   tier: "network",
-  price: "$0.0015",
+  price: "$0.001",
   description: "Current global weather for AI agents by city or coordinates: temperature, wind and current conditions. No API key.",
   probeInput: { city: "Dallas" },
 });
