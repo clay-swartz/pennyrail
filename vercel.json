@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/.well-known/x402",
+      "destination": "/api/x402-manifest"
+    }
+  ],
   "crons": [
     {
       "path": "/api/revenue/cron",
