@@ -1,22 +1,23 @@
-PennyRail v38 — Router Distribution PATCH ONLY
+PennyRail v38.3 — x402 List verification hotfix
 
-Branch from current main:
-  router-distribution-v38
+Changed/new project files:
+  app/api/radar/x402-list/route.ts
+  app/r/7f2d4c/page.tsx
 
-Upload the contents of this patch to the repository root.
-Changed/new files:
-  package.json
-  server.json
-  app/api/mcp/route.ts
-  .github/workflows/publish-mcp.yml
-  README_ROUTER_DISTRIBUTION_V38.md
+Purpose:
+- Show PennyRail's live x402 List status directly in Radar.
+- Add one-click paid x402 List delivery verification with a hard $0.30 ceiling.
+- Clearly distinguish a directory verification settlement from organic customer revenue.
+- Refresh stale Radar copy now that x402 List and the official MCP Registry are live.
 
-Commit:
-  Launch router distribution and MCP discovery
+Suggested branch:
+  x402-list-verify-v38-3
 
-Then PR -> merge -> wait for Vercel Production green.
-ONLY AFTER Production is green:
-  GitHub -> Actions -> Publish PennyRail MCP -> Run workflow
+Suggested commit:
+  Add x402 List verification to Radar
 
-The MCP endpoint exposes FREE find + quote. Paid execution remains on the
-existing x402 /api/router/execute/<tier> routes. No payment secrets are added.
+After Production is green:
+1. Open Radar.
+2. Click "Check x402 List".
+3. If Payment-ready = YES and Verified = NO, click "Verify delivery · max $0.30".
+4. Paste the returned JSON into ChatGPT.

@@ -12,6 +12,7 @@ export default function Home(){
   const [the402Registration,setThe402Registration]=useState<any>(null);
   const [the402Activation,setThe402Activation]=useState<any>(null);
   const [the402Status,setThe402Status]=useState<any>(null);
+  const [x402ListStatus,setX402ListStatus]=useState<any>(null);
   const [authResult,setAuthResult]=useState<any>(null);
   const [busy,setBusy]=useState("");
 
@@ -69,6 +70,18 @@ export default function Home(){
   async function loadYieldAudit(){
     setBusy("yield"); setYieldAudit(null);
     try{setYieldAudit(await adminCall("/api/radar/revenue-engine"))}
+    finally{setBusy("")}
+  }
+
+  async function loadX402ListStatus(){
+    setBusy("x402-list-status"); setX402ListStatus(null);
+    try{setX402ListStatus(await adminCall("/api/radar/x402-list"))}
+    finally{setBusy("")}
+  }
+
+  async function verifyX402List(){
+    setBusy("x402-list-verify"); setX402ListStatus(null);
+    try{setX402ListStatus(await adminCall("/api/radar/x402-list","POST"))}
     finally{setBusy("")}
   }
 
@@ -133,9 +146,10 @@ export default function Home(){
         <Metric title="Rank" value={r?.rank?`#${r.rank}`:"—"}/>
       </div>
       <div style={{fontSize:11,color:r?.firstSale?"#b8c9a8":"#777",marginTop:14}}>
-        {r?.firstSale?"✓ Outside PennyRail revenue detected.":"No outside sale detected yet."}
+        {r?.firstSale?"✓ Outside settlement detected.":"No outside sale detected yet."}
         {revenue?.asOf?` · snapshot ${new Date(revenue.asOf).toLocaleString()}`:""}
       </div>
+      {r?.firstSale?<div style={{fontSize:10,color:"#666",marginTop:6}}>Directory verification probes can create a real settlement; repeat/unknown buyers are the organic revenue signal.</div>:null}
       <button disabled={!hasAdmin||!!busy} onClick={refreshRevenue} style={primary}>
         {busy==="revenue"?"Checking chain…":"Refresh revenue"}
       </button>
@@ -206,9 +220,22 @@ export default function Home(){
     <section style={{...box,marginBottom:16}}>
       <div style={label}>DISTRIBUTION · X402 LIST</div>
       <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
-        Submitted successfully: 50/50 paid endpoints found, zero probe errors, $1 review fee paid. Submission 1552c878-c03b-4c33-b788-5db3e96f54fc is pending human review. Do not resubmit while pending.
+        PennyRail is approved and live on x402 List. Payment-ready is free; Verified requires x402 List to pay a real PennyRail endpoint and confirm delivery. Verification costs at most $0.30 total from the Radar buyer wallet and is a distribution/trust test, not organic customer revenue.
       </p>
-      <a href="https://x402-list.com" target="_blank" rel="noreferrer" style={link}>Open x402 List ↗</a>
+      <button disabled={!hasAdmin||!!busy} onClick={loadX402ListStatus} style={primary}>
+        {busy==="x402-list-status"?"Checking x402 List…":"Check x402 List"}
+      </button>
+      <button disabled={!hasAdmin||!!busy||Boolean(x402ListStatus?.listing?.verified)} onClick={verifyX402List} style={button}>
+        {busy==="x402-list-verify"?"Paying + verifying…":x402ListStatus?.listing?.verified?"Verified ✓":"Verify delivery · max $0.30"}
+      </button>
+      <a href="https://x402-list.com/services" target="_blank" rel="noreferrer" style={link}>Open x402 List ↗</a>
+      {x402ListStatus?.listing?<div style={{...metrics,marginTop:14}}>
+        <Metric title="Status" value={String(x402ListStatus.listing.status||"—")}/>
+        <Metric title="Payment-ready" value={x402ListStatus.listing.payment_ready?"YES":"NO"}/>
+        <Metric title="Verified" value={x402ListStatus.listing.verified?"YES":"NO"}/>
+        <Metric title="Endpoints" value={String(x402ListStatus.listing.endpoint_count??"—")}/>
+      </div>:null}
+      {x402ListStatus?<JsonBox value={x402ListStatus}/>:null}
     </section>
 
     <section style={box}>
@@ -235,7 +262,7 @@ export default function Home(){
     {catalog?<JsonBox value={{capabilityCount:catalog.capabilityCount,priceUsdPerRun:catalog.priceUsdPerRun,firstFive:catalog.capabilities?.slice(0,5)}}/>:null}
 
     <section style={{...box,marginTop:16,color:"#777",fontSize:11,lineHeight:1.7}}>
-      Transaction Router live: free intent discovery + free quote + one paid execution tier over exact paid-demand mappings, market-aligned micro-prices and the OpenAI broker. Distribution: x402 discovery/OpenAPI + Agent402 index + true402 + x402 List review; the402 remains additive when its provider registration reopens.
+      Transaction Router live: free intent discovery + free quote + one paid execution tier over exact paid-demand mappings, market-aligned micro-prices and the OpenAI broker. Distribution: x402 discovery/OpenAPI + Agent402 + true402 + x402scan + x402 List live + official MCP Registry; the402 remains additive when its provider registration reopens.
     </section>
   </main>
 }
