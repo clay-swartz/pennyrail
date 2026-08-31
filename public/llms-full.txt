@@ -35,3 +35,11 @@ Network: Base mainnet (`eip155:8453`)
 Currency: USDC
 
 Prefer exact-match endpoints for common tasks because they expose the clearest task/price metadata to autonomous routers.
+
+## Machine-commerce positioning
+
+PennyRail is designed for high-frequency autonomous purchasing rather than subscriptions or API keys. The wallet is the credential. Exact-match front doors maximize machine discoverability; the universal router handles the long tail.
+
+## Discovery vocabulary
+
+hashing, hash, SHA-256, SHA-512, SHA-1, MD5, checksum, fingerprint, Base64, decode, hex, encoding, currency conversion, FX, exchange rate, market data, financial data, token count, LLM token count, BPE, context window, prompt budget, page metadata, article metadata, URL metadata, OpenGraph, website metadata, inference, chat completion, GPT-4o-mini, OpenAI-compatible, EVM, block number, blockchain, crypto data, onchain, web search, live web search, current information, latest information, current events, latest news, research, grounded answer, citations, sources.
