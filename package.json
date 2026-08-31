@@ -20,7 +20,8 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "viem": "latest"
+    "viem": "latest",
+    "js-tiktoken": "1.0.21"
   },
   "devDependencies": {
     "@types/node": "latest",

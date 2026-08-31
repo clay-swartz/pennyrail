@@ -1,14 +1,20 @@
 import { FACTORY_CAPABILITIES, matchCapability, runFactoryOperation, type FactoryCapability } from "@/lib/factory";
 import { paidFetchBaseUsdcCapped } from "@/lib/radar-buyer";
 import { BESTSELLER_PRODUCT_MAP, PROVEN_PRODUCTS, runProvenPrimitive } from "@/lib/proven-primitives";
+import { upstreamConfiguration } from "@/lib/revenue-upstreams";
 
-export type RevenueTier = "nano" | "network" | "micro" | "standard";
+export type RevenueTier = "nano" | "mini" | "network" | "micro" | "intel" | "standard" | "premium" | "skill" | "analyst";
 
 export const REVENUE_TIER_PRICE: Record<RevenueTier, number> = {
   nano: 0.001,
+  mini: 0.002,
   network: 0.003,
   micro: 0.004,
+  intel: 0.005,
   standard: 0.01,
+  premium: 0.02,
+  skill: 0.05,
+  analyst: 0.20,
 };
 
 export type RevenueProductDefinition = {
@@ -22,6 +28,8 @@ export type RevenueProductDefinition = {
   source: "factory" | "template";
   operation?: string;
   template?: string;
+  requiresEnv?: string[];
+  legacyTiers?: RevenueTier[];
 };
 
 export type RevenueProductRoute = Omit<RevenueProductDefinition, "source"> & {
@@ -134,7 +142,8 @@ const TEMPLATE_PRODUCTS: RevenueProductDefinition[] = [
     title: "DNS record lookup",
     description: "Resolve A, AAAA, MX, TXT, CNAME, NS, CAA or SRV records through DNS-over-HTTPS.",
     aliases: ["dns records", "mx lookup", "txt record lookup", "aaaa lookup", "cname lookup", "dns mx txt"],
-    tier: "network",
+    tier: "nano",
+    legacyTiers: ["network"],
     inputHint: "{domain,type}",
     sampleInput: { domain: "example.com", type: "MX" },
     source: "template",
@@ -176,10 +185,22 @@ export function revenueProductDefinitions(): RevenueProductDefinition[] {
 
 const definitionMap = new Map(revenueProductDefinitions().map(p => [p.id, p]));
 
+export function revenueProductConfiguration(product: RevenueProductDefinition) {
+  const missing = (product.requiresEnv || []).filter(name => !process.env[name]?.trim());
+  return { configured: missing.length === 0, missingEnv: missing };
+}
+
+export function revenueProductConfigurationById(id: string) {
+  const product = definitionMap.get(id);
+  if (!product) return { configured: false, missingEnv: [] as string[] };
+  return revenueProductConfiguration(product);
+}
+
 export function staticRevenueProductRoutes(): RevenueProductRoute[] {
   const routes: RevenueProductRoute[] = [];
   const seen = new Set<string>();
   for (const product of revenueProductDefinitions()) {
+    if (!revenueProductConfiguration(product).configured) continue;
     for (const alias of product.aliases) {
       const slug = `${product.id}--${cleanSlug(alias)}`;
       const path = `/api/p/${product.tier}/${slug}`;
@@ -202,7 +223,10 @@ export function resolveRevenueProductSlug(slug: string, requestedTier: RevenueTi
   const id = decodeURIComponent(slug).split("--", 1)[0];
   const product = definitionMap.get(id);
   if (!product) throw new Error("unknown PennyRail revenue product");
-  if (product.tier !== requestedTier) throw new Error("product price tier mismatch");
+  const allowed = product.tier === requestedTier || Boolean(product.legacyTiers?.includes(requestedTier));
+  if (!allowed) throw new Error("product price tier mismatch");
+  const config = revenueProductConfiguration(product);
+  if (!config.configured) throw new Error(`product is not configured: missing ${config.missingEnv.join(", ")}`);
   return product;
 }
 
@@ -337,7 +361,7 @@ export async function runRevenueProduct(slug: string, tier: RevenueTier, input: 
   return {
     product: product.id,
     title: product.title,
-    priceUsd: REVENUE_TIER_PRICE[product.tier],
+    priceUsd: REVENUE_TIER_PRICE[tier],
     result,
   };
 }
@@ -434,6 +458,7 @@ function templateMatch(need: string) {
   const n = normalize(need);
   let best: { product: RevenueProductDefinition; score: number } | null = null;
   for (const product of TEMPLATE_PRODUCTS) {
+    if (!revenueProductConfiguration(product).configured) continue;
     let score = 0;
     for (const alias of product.aliases) {
       const words = normalize(alias).split(" ").filter(Boolean);
@@ -462,7 +487,9 @@ function resolveBestsellerProduct(slug: string) {
   const id = BESTSELLER_PRODUCT_MAP[slug];
   if (!id) return null;
   const product = definitionMap.get(id);
-  return product ? { product, score: 100 } : null;
+  if (!product) return null;
+  const config = revenueProductConfiguration(product);
+  return { product, score: 100, ...config };
 }
 
 function categoryRollup(services: MarketService[]) {
@@ -698,9 +725,9 @@ export async function runRevenueAudit() {
     const matchText = bestsellerMatchText(row, agent402Catalog);
     const resolved = resolveBestsellerProduct(row.slug);
     const score = bestsellerScore(row);
-    let action: "AUTO-LIVE" | "NEEDS-PRIMITIVE" = resolved ? "AUTO-LIVE" : "NEEDS-PRIMITIVE";
+    let action: "AUTO-LIVE" | "NEEDS-CONFIG" | "NEEDS-PRIMITIVE" = resolved ? (resolved.configured ? "AUTO-LIVE" : "NEEDS-CONFIG") : "NEEDS-PRIMITIVE";
     let productRoute: RevenueProductRoute | null = null;
-    if (resolved) {
+    if (resolved?.configured) {
       const product = resolved.product;
       const alias = `${need} paid demand`;
       const slug = `${product.id}--proven-${cleanSlug(row.slug)}`;
@@ -727,6 +754,8 @@ export async function runRevenueAudit() {
         tier: resolved.product.tier,
         priceUsd: REVENUE_TIER_PRICE[resolved.product.tier],
         matchScore: resolved.score,
+        configured: resolved.configured,
+        missingEnv: resolved.missingEnv,
         path: productRoute?.path || null,
       } : null,
     };
@@ -750,7 +779,7 @@ export async function runRevenueAudit() {
   return {
     ok: true,
     generatedAt: new Date().toISOString(),
-    mode: "PROVEN_DEMAND_MULTIPLIER_V35",
+    mode: "REVENUE_BROKER_V36",
     sources: {
       agent402Wishes: wishesResult.status === "fulfilled" ? (publicWishIsBeaconOnly ? "beacon-only" : "ok") : "unavailable",
       agent402DemandRadar: paidDemandRows.length ? "ok-paid" : (paidIntel.demandRadarEnabled ? "upstream-empty" : "disabled-upstream-empty"),
@@ -777,15 +806,25 @@ export async function runRevenueAudit() {
       demandAliasesLive: dynamicRoutes.length,
       totalRevenueRoutesLive: allRoutes.length,
       nanoRoutes: allRoutes.filter(r => r.tier === "nano").length,
+      miniRoutes: allRoutes.filter(r => r.tier === "mini").length,
       networkRoutes: allRoutes.filter(r => r.tier === "network").length,
       microRoutes: allRoutes.filter(r => r.tier === "micro").length,
+      intelRoutes: allRoutes.filter(r => r.tier === "intel").length,
       standardRoutes: allRoutes.filter(r => r.tier === "standard").length,
+      premiumRoutes: allRoutes.filter(r => r.tier === "premium").length,
+      skillRoutes: allRoutes.filter(r => r.tier === "skill").length,
+      analystRoutes: allRoutes.filter(r => r.tier === "analyst").length,
       provenBestsellerRows: bestRows.length,
       provenBestsellerMapped: bestsellerOpportunities.filter((x: any) => x.action === "AUTO-LIVE").length,
+      provenBestsellerNeedsConfig: bestsellerOpportunities.filter((x: any) => x.action === "NEEDS-CONFIG").length,
+      provenBestsellerPotentialMapped: bestsellerOpportunities.filter((x: any) => x.action !== "NEEDS-PRIMITIVE").length,
       provenBestsellerCoveragePct: bestRows.length ? Number((100 * bestsellerOpportunities.filter((x: any) => x.action === "AUTO-LIVE").length / bestRows.length).toFixed(1)) : 0,
+      provenBestsellerPotentialCoveragePct: bestRows.length ? Number((100 * bestsellerOpportunities.filter((x: any) => x.action !== "NEEDS-PRIMITIVE").length / bestRows.length).toFixed(1)) : 0,
+      upstreamsConfigured: upstreamConfiguration(),
     },
     opportunities: opportunities.slice(0, 100),
     unresolved: opportunities.filter((x: any) => x.action === "NEEDS-PRIMITIVE").slice(0, 40),
+    needsConfig: opportunities.filter((x: any) => x.action === "NEEDS-CONFIG").slice(0, 40),
     autoLive: opportunities.filter((x: any) => x.action === "AUTO-LIVE").slice(0, 50),
     productRoutes: allRoutes,
     paidDemand: {
@@ -809,7 +848,7 @@ export async function runRevenueAudit() {
       cacheHours: 6,
       worstCaseIntelSpendUsdPerDay: paidIntel.demandRadarEnabled ? 0.04 : 0.02,
       worstCaseIntelSpendUsdPer30d: paidIntel.demandRadarEnabled ? 1.2 : 0.6,
-      note: "v35 buys the proven-working Agent402 bestsellers feed every audit. Demand Radar is disabled by default because the upstream currently returns aggregate totals with matchedClusters:0 despite a non-empty wish board; set PENNYRAIL_ENABLE_DEMAND_RADAR=1 only after that upstream starts returning itemized radar rows again.",
+      note: "v36 buys the proven-working Agent402 bestsellers feed every audit, aligns canonical price tiers to observed paid tickets, and only marks upstream-backed products AUTO-LIVE when their required environment keys are configured. Demand Radar stays disabled by default while its upstream itemized feed is empty.",
     },
   };
 }

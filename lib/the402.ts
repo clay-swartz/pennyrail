@@ -38,10 +38,10 @@ export async function registerThe402Provider(webhookUrl: string): Promise<The402
     headers: { "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify({
       name: THE402_PROVIDER_NAME,
-      description: "Autonomous machine-utility provider: deterministic text, JSON, URL, DNS, validation, security, vehicle and public-data tasks fulfilled in seconds.",
+      description: "Autonomous machine-commerce provider: deterministic utilities plus live web search, page intelligence and optional low-cost AI/embedding capabilities fulfilled in seconds.",
       type: "provider",
       webhook_url: webhookUrl,
-      capabilities: ["data", "utilities", "developer-tools", "dns", "security", "validation", "automation", "x402"],
+      capabilities: ["data", "utilities", "developer-tools", "dns", "security", "validation", "automation", "search", "ai", "embeddings", "x402"],
     }),
     cache: "no-store",
   });
@@ -90,73 +90,113 @@ export const THE402_SERVICE_DEFINITIONS = [
   {
     name: "PennyRail Text Transforms",
     description: "Instant deterministic text cleanup, case conversion, slugging, dedupe, sorting, extraction, counting and truncation for agents.",
-    price: { fixed: "$0.01" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "developer-tools",
+    price: { fixed: "$0.001" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "developer-tools",
     tags: ["text", "slug", "dedupe", "extract", "transform", "developer-tools"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
   },
   {
     name: "PennyRail JSON Utilities",
     description: "Instant deterministic JSON flattening, key inspection, path lookup, key sorting, pick/omit and canonical utility operations.",
-    price: { fixed: "$0.01" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "developer-tools",
+    price: { fixed: "$0.001" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "developer-tools",
     tags: ["json", "flatten", "keys", "canonical", "developer-tools", "data"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
   },
   {
     name: "PennyRail Encoding Hash Validation",
     description: "Instant base64, hex, URL encoding/decoding, SHA-256 hashing, email validation and UUID validation.",
-    price: { fixed: "$0.01" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "developer-tools",
+    price: { fixed: "$0.001" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "developer-tools",
     tags: ["encoding", "base64", "hex", "sha256", "hash", "validation"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
   },
   {
     name: "PennyRail URL Utilities",
     description: "Instant URL parsing, normalization, resolution, domain extraction, query-string conversion and tracking cleanup.",
-    price: { fixed: "$0.015" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "data",
+    price: { fixed: "$0.001" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "data",
     tags: ["url", "parse", "normalize", "query", "tracking", "domain"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
   },
   {
     name: "PennyRail DNS Record Lookup",
     description: "Instant A, AAAA, MX, TXT, CNAME, NS, CAA and SRV DNS lookups through DNS-over-HTTPS.",
-    price: { fixed: "$0.02" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "data",
+    price: { fixed: "$0.001" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "data",
     tags: ["dns", "mx", "txt", "cname", "domain", "network"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
   },
   {
     name: "PennyRail Number Time Utilities",
     description: "Instant deterministic numeric stats, sums, percent change, clamp/round plus Unix/ISO conversion and time differences.",
-    price: { fixed: "$0.01" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "developer-tools",
+    price: { fixed: "$0.001" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "developer-tools",
     tags: ["number", "statistics", "time", "unix", "iso", "math"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
   },
   {
     name: "PennyRail Package Repository Lookups",
     description: "Instant NPM latest-version, GitHub repository, package and developer-oriented public data lookups.",
-    price: { fixed: "$0.03" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "data",
+    price: { fixed: "$0.003" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "data",
     tags: ["npm", "github", "package", "repository", "developer", "lookup"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
   },
   {
     name: "PennyRail Package Vulnerability Check",
     description: "Instant known-vulnerability lookup for an open-source package version using the OSV database.",
-    price: { fixed: "$0.04" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "security",
+    price: { fixed: "$0.004" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "security",
     tags: ["security", "vulnerability", "osv", "dependency", "package", "cve"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
   },
   {
     name: "PennyRail VIN Decoder",
     description: "Instant VIN decoding to normalized vehicle make, model, year, trim, body and plant metadata using NHTSA vPIC.",
-    price: { fixed: "$0.04" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "data",
+    price: { fixed: "$0.004" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "data",
     tags: ["vehicle", "vin", "decoder", "nhtsa", "automotive", "lookup"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
   },
   {
     name: "PennyRail FX Country Public Data",
     description: "Instant foreign-exchange conversion helpers and country/public registry lookups for machine workflows.",
-    price: { fixed: "$0.03" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "finance",
+    price: { fixed: "$0.003" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "finance",
     tags: ["fx", "currency", "country", "public-data", "lookup", "finance"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
   },
   {
     name: "PennyRail Batch Utility Router",
     description: "Run up to ten deterministic PennyRail utility operations in one machine job and receive one structured result envelope.",
-    price: { fixed: "$0.08" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "automation",
+    price: { fixed: "$0.01" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "automation",
     tags: ["batch", "automation", "utilities", "workflow", "developer-tools"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
+  },
+  {
+    name: "PennyRail Web Search",
+    description: "Live web search for agents with a grounded answer plus ranked source URLs/titles, bounded to one upstream search-tool call.",
+    price: { fixed: "$0.02" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "search",
+    tags: ["search", "web", "fresh", "research", "agent", "data"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
+    _requires: ["OPENAI_API_KEY"],
+  },
+  {
+    name: "PennyRail Page Intelligence",
+    description: "Fetch page metadata or response/security headers from a public URL with SSRF protection.",
+    price: { fixed: "$0.003" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "data",
+    tags: ["metadata", "headers", "security", "url", "web", "open-graph"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
+  },
+  {
+    name: "PennyRail Agent Chat",
+    description: "Low-cost bounded GPT-4o-mini chat completions for agent tasks with structured output and optional tool definitions.",
+    price: { fixed: "$0.02" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "20s", category: "ai",
+    tags: ["ai", "chat", "llm", "openai", "completion", "agent"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
+    _requires: ["OPENAI_API_KEY"],
+  },
+  {
+    name: "PennyRail Embeddings",
+    description: "Low-cost OpenAI text embeddings for semantic search, RAG, similarity and clustering workflows.",
+    price: { fixed: "$0.005" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "20s", category: "ai",
+    tags: ["ai", "embeddings", "vector", "rag", "semantic-search"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
+    _requires: ["OPENAI_API_KEY"],
+  },
+  {
+    name: "PennyRail Content Moderation",
+    description: "Harmful-content classification with category scores using OpenAI omni-moderation.",
+    price: { fixed: "$0.002" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "20s", category: "verification",
+    tags: ["moderation", "safety", "classification", "ai", "verification"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
+    _requires: ["OPENAI_API_KEY"],
+  },
+  {
+    name: "PennyRail Exact Token Count",
+    description: "Exact offline o200k_base/cl100k_base token counts for LLM context budgeting.",
+    price: { fixed: "$0.001" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "developer-tools",
+    tags: ["tokens", "tiktoken", "llm", "context", "developer-tools"], input_schema: directInputSchema, deliverable_schema: deliverableSchema,
   },
   {
     name: "PennyRail Autonomous Utility Router",
     description: "General instant deterministic machine-utility router. Describe a supported task and PennyRail maps it to the live revenue-product portfolio.",
-    price: { fixed: "$0.04" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "data",
+    price: { fixed: "$0.01" }, service_type: "data_api", pricing_model: "fixed", fulfillment_type: "instant", estimated_delivery: "10s", category: "data",
     tags: ["utility", "router", "automation", "data", "x402", "agent"], input_schema: bidInputSchema, deliverable_schema: deliverableSchema,
   },
 ] as const;
@@ -187,12 +227,17 @@ export async function activateThe402Provider(args: { participantId: string; apiK
   const existing = await listThe402Services(apiKey);
   const existingNames = new Set(existing.map(s => asText(s?.name)));
   const created: any[] = [];
+  const skippedUnconfigured: Array<{name:string;missingEnv:string[]}> = [];
   for (const definition of THE402_SERVICE_DEFINITIONS) {
     if (existingNames.has(definition.name)) continue;
+    const requires = Array.isArray((definition as any)._requires) ? (definition as any)._requires as string[] : [];
+    const missingEnv = requires.filter(name => !process.env[name]?.trim());
+    if (missingEnv.length) { skippedUnconfigured.push({ name: definition.name, missingEnv }); continue; }
+    const { _requires, ...publicDefinition } = definition as any;
     const response = await fetch(`${API}/v1/services`, {
       method: "POST",
       headers: authHeaders(apiKey),
-      body: JSON.stringify(definition),
+      body: JSON.stringify(publicDefinition),
       cache: "no-store",
     });
     created.push(await parse(response));
@@ -211,6 +256,7 @@ export async function activateThe402Provider(args: { participantId: string; apiK
     profile: { participantId, webhookUrl: args.webhookUrl, webhookConfiguredAtRegistration: true },
     createdCount: created.length,
     created,
+    skippedUnconfigured,
     notifications,
     services: after,
   };
@@ -238,6 +284,12 @@ function serviceForProduct(product: RevenueProductDefinition | null, services: T
   const exact = (name: string) => services.find(s => asText(s?.name) === name);
   if (!product) return exact("PennyRail Autonomous Utility Router") || services[0] || null;
   if (product.id === "batch.utility") return exact("PennyRail Batch Utility Router") || services[0] || null;
+  if (product.id === "web.search") return exact("PennyRail Web Search") || exact("PennyRail Autonomous Utility Router") || services[0] || null;
+  if (/^web\./.test(product.id)) return exact("PennyRail Page Intelligence") || exact("PennyRail Autonomous Utility Router") || services[0] || null;
+  if (product.id === "text.token-count") return exact("PennyRail Exact Token Count") || services[0] || null;
+  if (/^ai\.embed/.test(product.id)) return exact("PennyRail Embeddings") || exact("PennyRail Autonomous Utility Router") || services[0] || null;
+  if (product.id === "ai.moderate") return exact("PennyRail Content Moderation") || exact("PennyRail Autonomous Utility Router") || services[0] || null;
+  if (/^ai\./.test(product.id)) return exact("PennyRail Agent Chat") || exact("PennyRail Autonomous Utility Router") || services[0] || null;
   if (/^text\./.test(product.id)) return exact("PennyRail Text Transforms") || services[0] || null;
   if (/^json\./.test(product.id)) return exact("PennyRail JSON Utilities") || services[0] || null;
   if (/^(encoding|validation|crypto)\./.test(product.id)) return exact("PennyRail Encoding Hash Validation") || services[0] || null;

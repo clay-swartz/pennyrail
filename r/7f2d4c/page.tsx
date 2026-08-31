@@ -1,144 +1,259 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Home(){
- const [opportunities,setOpportunities]=useState<any>(null);
- const [registration,setRegistration]=useState<any>(null);
- const [market,setMarket]=useState<any>(null);
- const [paid,setPaid]=useState<any>(null);
- const [wallet,setWallet]=useState<any>(null);
- const [selfTest,setSelfTest]=useState<any>(null);
- const [diagnostics,setDiagnostics]=useState<any>(null);
- const [token,setToken]=useState("");
- const [busy,setBusy]=useState("");
+  const [token,setToken]=useState("");
+  const [rememberedAuth,setRememberedAuth]=useState(false);
+  const [authChecked,setAuthChecked]=useState(false);
+  const [publication,setPublication]=useState<any>(null);
+  const [catalog,setCatalog]=useState<any>(null);
+  const [revenue,setRevenue]=useState<any>(null);
+  const [yieldAudit,setYieldAudit]=useState<any>(null);
+  const [the402Registration,setThe402Registration]=useState<any>(null);
+  const [the402Activation,setThe402Activation]=useState<any>(null);
+  const [the402Status,setThe402Status]=useState<any>(null);
+  const [authResult,setAuthResult]=useState<any>(null);
+  const [busy,setBusy]=useState("");
 
- async function adminCall(path:string,method="GET"){
-   const response=await fetch(path,{method,headers:{"x-admin-token":token,"accept":"application/json"},cache:"no-store"});
-   const text=await response.text();
-   let body:any=null;
-   try{body=text?JSON.parse(text):null}catch{}
-   if(!body){
-     throw new Error(`Unexpected response from ${path}: HTTP ${response.status}${text?` · ${text.slice(0,180)}`:""}`);
-   }
-   return body;
- }
+  useEffect(()=>{
+    fetch("/api/radar/session",{cache:"no-store",credentials:"same-origin"})
+      .then(r=>r.json()).then(j=>setRememberedAuth(Boolean(j?.authenticated)))
+      .catch(()=>setRememberedAuth(false)).finally(()=>setAuthChecked(true));
+  },[]);
 
- async function scan(){
-   setBusy("scan");
-   setOpportunities(null);
-   try{
-     const result=await adminCall("/api/radar/opportunities");
-     setOpportunities(result);
-   }catch(error){
-     setOpportunities({
-       error:error instanceof Error?error.message:"Radar scan failed in the browser.",
-       stage:"browser"
-     });
-   }finally{
-     setBusy("");
-   }
- }
+  const hasAdmin=Boolean(token||rememberedAuth);
 
- async function registerSeller(){setBusy("register");try{setRegistration(await adminCall("/api/radar/register","POST"))}catch(error){setRegistration({error:error instanceof Error?error.message:"Listing failed"})}finally{setBusy("")}}
- async function loadMarket(){try{const r=await fetch("/api/radar/market",{cache:"no-store"});const t=await r.text();setMarket(JSON.parse(t))}catch(error){setMarket({error:error instanceof Error?error.message:"Market refresh failed"})}}
- async function loadPaid(){try{setPaid(await adminCall("/api/radar/paid"))}catch(error){setPaid({error:error instanceof Error?error.message:"Paid intelligence failed"})}}
- async function loadWallet(){try{setWallet(await adminCall("/api/radar/wallet"))}catch(error){setWallet({error:error instanceof Error?error.message:"Wallet lookup failed"})}}
- async function fundWallet(){try{setWallet(await adminCall("/api/radar/wallet","POST"))}catch(error){setWallet({error:error instanceof Error?error.message:"Wallet funding failed"})}}
- async function runSelfTest(){try{setSelfTest(await adminCall("/api/radar/self-test","POST"))}catch(error){setSelfTest({error:error instanceof Error?error.message:"Self-test failed"})}}
- async function runDiagnostics(){try{setDiagnostics(await adminCall("/api/radar/diagnostics"))}catch(error){setDiagnostics({error:error instanceof Error?error.message:"Diagnostics failed"})}}
+  async function adminCall(path:string,method="GET"){
+    const headers:Record<string,string>={"accept":"application/json"};
+    if(token) headers["x-admin-token"]=token;
+    const r=await fetch(path,{method,headers,cache:"no-store",credentials:"same-origin"});
+    const text=await r.text();
+    try{return JSON.parse(text)}
+    catch{return {error:`HTTP ${r.status}: ${text.slice(0,300)}`}}
+  }
 
- const rows=opportunities?.opportunities||[];
- const scanFinished=Boolean(opportunities)&&!opportunities?.error;
+  async function rememberAccess(){
+    if(!token)return;
+    setBusy("remember");setAuthResult(null);
+    try{
+      const r=await fetch("/api/radar/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token}),credentials:"same-origin"});
+      const j=await r.json();setAuthResult(j);
+      if(j?.authenticated){setRememberedAuth(true);setToken("");}
+    }finally{setBusy("")}
+  }
 
- return <main style={{maxWidth:1160,margin:"0 auto",padding:"48px 24px 80px"}}>
-  <div style={{fontSize:12,letterSpacing:3,color:"#b7a77f"}}>PENNYRAIL</div>
-  <h1 style={{fontSize:"clamp(38px,6vw,64px)",lineHeight:1.02,margin:"14px 0 12px",maxWidth:850}}>Find demand. Ship tollbooths.</h1>
-  <p style={{maxWidth:780,color:"#aaa",lineHeight:1.65,fontSize:17}}>Watch what agents ask for, check whether anyone serves it well, then publish the smallest paid function that closes the gap.</p>
+  async function forgetAccess(){
+    setBusy("forget");
+    try{await fetch("/api/radar/session",{method:"DELETE",credentials:"same-origin"});setRememberedAuth(false);setToken("");setAuthResult(null);}
+    finally{setBusy("")}
+  }
 
-  <section style={{...card,marginTop:30}}>
-    <div style={{display:"flex",gap:18,justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap"}}>
-      <div><div style={eyebrow}>CONTROL</div><h2 style={{margin:"7px 0 6px"}}>Radar access</h2><p style={{...muted,margin:0}}>Your admin token stays in this browser tab. Scanning the free radar costs nothing.</p></div>
-      <input value={token} onChange={e=>setToken(e.target.value)} placeholder="RADAR_ADMIN_TOKEN" style={{...input,maxWidth:430}}/>
-    </div>
-  </section>
+  async function registerThe402(){
+    setBusy("the402-register"); setThe402Registration(null);
+    try{setThe402Registration(await adminCall("/api/radar/the402/register","POST"))}
+    finally{setBusy("")}
+  }
 
-  <section style={{display:"grid",gridTemplateColumns:"minmax(0,1.5fr) minmax(280px,.7fr)",gap:16,marginTop:16}} className="radar-grid">
-    <div style={heroCard}>
-      <div style={eyebrow}>01 · RADAR</div>
-      <h2 style={{fontSize:30,margin:"10px 0 8px"}}>What should PennyRail build?</h2>
-      <p style={{...muted,maxWidth:650}}>Pull live unmet requests from Agent402, check current supply, then rank the gaps as BUILD / WATCH / IGNORE.</p>
-      <button style={primaryBtn} onClick={scan} disabled={busy==="scan"||!token.trim()}>
-        {busy==="scan"?"Scanning live demand…":"Scan live gaps"}
+  async function activateThe402(){
+    setBusy("the402-activate"); setThe402Activation(null);
+    try{setThe402Activation(await adminCall("/api/radar/the402/activate","POST"))}
+    finally{setBusy("")}
+  }
+
+  async function loadThe402Status(sweep=false){
+    setBusy("the402-status"); setThe402Status(null);
+    try{setThe402Status(await adminCall(`/api/radar/the402/status${sweep?"?sweep=1":""}`))}
+    finally{setBusy("")}
+  }
+
+  async function loadYieldAudit(){
+    setBusy("yield"); setYieldAudit(null);
+    try{setYieldAudit(await adminCall("/api/radar/revenue-engine"))}
+    finally{setBusy("")}
+  }
+
+  async function refreshRevenue(){
+    setBusy("revenue");
+    try{setRevenue(await adminCall("/api/radar/revenue"))}
+    finally{setBusy("")}
+  }
+
+  async function publish(){
+    setBusy("publish"); setPublication(null);
+    try{
+      const [agent402,true402]=await Promise.all([
+        adminCall("/api/radar/register","POST"),
+        adminCall("/api/radar/register-true402","POST"),
+      ]);
+      setPublication({agent402,true402});
+    } finally { setBusy(""); }
+  }
+
+  async function loadCatalog(){
+    setBusy("catalog");
+    try{
+      const r=await fetch("/api/factory/catalog",{cache:"no-store"});
+      setCatalog(await r.json());
+    } finally { setBusy(""); }
+  }
+
+  const r=revenue?.revenue;
+  const upstreams=yieldAudit?.portfolio?.upstreamsConfigured;
+  const auditDisplay=yieldAudit?{
+    generatedAt:yieldAudit.generatedAt,
+    sources:yieldAudit.sources,
+    market:yieldAudit.market?{
+      servicesObserved:yieldAudit.market.servicesObserved,
+      measuredVolumeUsd30d:yieldAudit.market.measuredVolumeUsd30d,
+      measuredTransactions30d:yieldAudit.market.measuredTransactions30d,
+      measuredBuyers30d:yieldAudit.market.measuredBuyers30d,
+      topCategories:yieldAudit.market.categories?.slice(0,8),
+    }:null,
+    portfolio:yieldAudit.portfolio,
+    economics:yieldAudit.economics,
+    paidDemand:yieldAudit.paidDemand,
+    needsConfig:yieldAudit.needsConfig?.slice(0,12),
+    autoLive:yieldAudit.autoLive?.slice(0,18),
+    unresolved:yieldAudit.unresolved?.slice(0,18),
+  }:null;
+
+  return <main style={{maxWidth:1000,margin:"0 auto",padding:"40px 24px 80px",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>
+    <div style={{fontSize:11,letterSpacing:2.2,color:"#817966"}}>PENNYRAIL</div>
+    <h1 style={{fontSize:28,fontWeight:500,margin:"14px 0 8px"}}>Machine revenue.</h1>
+    <p style={{color:"#777",fontSize:12,lineHeight:1.7,margin:"0 0 24px"}}>
+      autonomous yield engine · proven demand + upstream broker · target ≥ $1,000/day · outside revenue only.
+    </p>
+
+    <section style={{...box,marginBottom:16}}>
+      <div style={label}>REVENUE · ON-CHAIN</div>
+      <div style={metrics}>
+        <Metric title="Earned · 7d" value={r?`$${Number(r.earnedUsd||0).toFixed(3)}`:"—"}/>
+        <Metric title="Outside calls" value={r?String(r.outsideCalls||0):"—"}/>
+        <Metric title="Paying bots" value={r?String(r.payingBots||0):"—"}/>
+        <Metric title="Rank" value={r?.rank?`#${r.rank}`:"—"}/>
+      </div>
+      <div style={{fontSize:11,color:r?.firstSale?"#b8c9a8":"#777",marginTop:14}}>
+        {r?.firstSale?"✓ Outside PennyRail revenue detected.":"No outside sale detected yet."}
+        {revenue?.asOf?` · snapshot ${new Date(revenue.asOf).toLocaleString()}`:""}
+      </div>
+      <button disabled={!hasAdmin||!!busy} onClick={refreshRevenue} style={primary}>
+        {busy==="revenue"?"Checking chain…":"Refresh revenue"}
       </button>
-      {!token.trim()?<div style={{fontSize:11,color:"#777",marginTop:8}}>Enter the Radar token above to enable scanning.</div>:null}
+      {revenue?.basescan?<a href={revenue.basescan} target="_blank" rel="noreferrer" style={link}>Open BaseScan ↗</a>:null}
+      {revenue?.error?<JsonBox value={revenue}/>:null}
+    </section>
 
-      {busy==="scan"?<div style={emptyState}>Contacting the live demand feed and checking current supply…</div>:null}
-
-      {!busy&&opportunities?.error?<pre style={errorPre}>{JSON.stringify(opportunities,null,2)}</pre>:null}
-
-      {!busy&&rows.length?<div style={{marginTop:20,display:"grid",gap:10}}>
-        <div style={{fontSize:11,color:"#777",marginBottom:2}}>
-          {opportunities.buildNow||0} BUILD · {opportunities.watch||0} WATCH · {opportunities.rawSignalsSeen||0} signals scanned
-        </div>
-        {rows.slice(0,8).map((r:any,i:number)=><div key={i} style={oppRow}>
-          <div style={{minWidth:82}}><span style={{...pill,...(r.action==="BUILD"?buildPill:r.action==="WATCH"?watchPill:ignorePill)}}>{r.action}</span><div style={{fontSize:11,color:"#777",marginTop:7}}>score {r.score}</div></div>
-          <div style={{flex:1,minWidth:0}}><div style={{fontSize:17,fontWeight:700}}>{r.text}</div><div style={{fontSize:12,color:"#999",marginTop:6,lineHeight:1.5}}>{r.reasons?.join(" · ")}</div>{r.supply?.best?.name?<div style={{fontSize:11,color:"#756f64",marginTop:5}}>Closest supply: {r.supply.best.name}{r.supply.best.price?` · ${r.supply.best.price}`:""}</div>:null}</div>
-        </div>)}
+    <section style={{...box,marginBottom:16}}>
+      <div style={label}>REVENUE ENGINE · PROVEN DEMAND BROKER</div>
+      <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
+        PennyRail buys the proven-working Agent402 Bestsellers signal, maps paid demand only to exact implementations, aligns common price points, and exposes configured products automatically. Demand Radar remains disabled while its upstream itemized feed is empty.
+      </p>
+      <button disabled={!hasAdmin||!!busy} onClick={loadYieldAudit} style={primary}>
+        {busy==="yield"?"Auditing machine demand…":"Audit revenue gaps"}
+      </button>
+      <a href="/api/revenue/catalog" target="_blank" rel="noreferrer" style={link}>Open machine catalog ↗</a>
+      {yieldAudit?.portfolio?<div style={{...metrics,marginTop:14}}>
+        <Metric title="Revenue routes live" value={String(yieldAudit.portfolio.totalRevenueRoutesLive||0)}/>
+        <Metric title="Demand aliases" value={String(yieldAudit.portfolio.demandAliasesLive||0)}/>
+        <Metric title="Auto-live gaps" value={String(yieldAudit.autoLive?.length||0)}/>
+        <Metric title="Needs config" value={String(yieldAudit.needsConfig?.length||0)}/>
+        <Metric title="Needs primitive" value={String(yieldAudit.unresolved?.length||0)}/>
+        <Metric title="Paid bestseller rows" value={String(yieldAudit.sources?.bestsellerRowsExtracted||0)}/>
+        <Metric title="Live mapped" value={yieldAudit.portfolio?.provenBestsellerRows?`${yieldAudit.portfolio.provenBestsellerMapped||0}/${yieldAudit.portfolio.provenBestsellerRows}`:"—"}/>
+        <Metric title="Potential mapped" value={yieldAudit.portfolio?.provenBestsellerRows?`${yieldAudit.portfolio.provenBestsellerPotentialMapped||0}/${yieldAudit.portfolio.provenBestsellerRows}`:"—"}/>
       </div>:null}
+      {upstreams?<div style={{fontSize:11,lineHeight:1.8,color:"#aaa",marginTop:12}}>
+        OpenAI revenue broker: <b style={{color:upstreams.openAi?"#b8c9a8":"#d2aa83"}}>{upstreams.openAi?"configured ✓":"needs OPENAI_API_KEY"}</b>
+      </div>:null}
+      {yieldAudit?<JsonBox value={auditDisplay} copyValue={yieldAudit} copyLabel="Copy full JSON"/>:null}
+    </section>
 
-      {!busy&&!opportunities?<div style={emptyState}>No scan yet. The first useful output should be a short list, not a wall of marketplace data.</div>:null}
-      {!busy&&scanFinished&&!rows.length?<div style={emptyState}>Scan completed successfully, but the live feed returned no current demand clusters.</div>:null}
-    </div>
+    <section style={{...box,marginBottom:16}}>
+      <div style={label}>OUTBOUND SALES · THE402</div>
+      <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
+        PennyRail can sell fixed-price services in the402 catalog and subscribe to real-time request.created pushes. Matching requests are bid automatically and winning jobs are fulfilled through the Revenue Engine. Registration costs at most $0.01 once; listing, notifications, bidding with the API key and fulfillment are free platform API calls.
+      </p>
+      <button disabled={!hasAdmin||!!busy||Boolean(the402Registration?.ok)} onClick={registerThe402} style={primary}>
+        {busy==="the402-register"?"Registering provider…":"1 · Register the402 provider · max $0.01"}
+      </button>
+      <button disabled={!hasAdmin||!!busy} onClick={activateThe402} style={button}>
+        {busy==="the402-activate"?"Activating sales…":"2 · Activate listings + auto-bidding"}
+      </button>
+      <button disabled={!hasAdmin||!!busy} onClick={()=>loadThe402Status(false)} style={button}>
+        {busy==="the402-status"?"Checking…":"Status + earnings"}
+      </button>
+      <button disabled={!hasAdmin||!!busy} onClick={()=>loadThe402Status(true)} style={button}>
+        Sweep requests now
+      </button>
+      {the402Registration?.ok?<div style={{fontSize:11,lineHeight:1.7,color:"#d0c7b4",marginTop:14}}>
+        Registration complete. Copy the three returned environment variables into Vercel Production, redeploy once, then click <b>Activate listings + auto-bidding</b>. Do not commit the API key or webhook secret.
+      </div>:null}
+      {the402Registration?<JsonBox value={the402Registration}/>:null}
+      {the402Activation?<JsonBox value={the402Activation}/>:null}
+      {the402Status?<JsonBox value={the402Status}/>:null}
+    </section>
 
-    <div style={card}>
-      <div style={eyebrow}>02 · SELL</div>
-      <h2 style={{margin:"10px 0 8px"}}>Open the booth</h2>
-      <p style={muted}>Submit PennyRail's public x402 manifest to Agent402's open index.</p>
-      <button style={btn} onClick={registerSeller} disabled={busy==="register"}>{busy==="register"?"Submitting…":"List PennyRail"}</button>
-      <pre style={pre}>{registration?JSON.stringify(registration,null,2):"Not submitted yet"}</pre>
-    </div>
-  </section>
+    <section style={{...box,marginBottom:16}}>
+      <div style={label}>DISTRIBUTION · X402 LIST</div>
+      <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
+        Submitted successfully: 50/50 paid endpoints found, zero probe errors, $1 review fee paid. Submission 1552c878-c03b-4c33-b788-5db3e96f54fc is pending human review. Do not resubmit while pending.
+      </p>
+      <a href="https://x402-list.com" target="_blank" rel="noreferrer" style={link}>Open x402 List ↗</a>
+    </section>
 
-  <section style={{...card,marginTop:16}}>
-    <div style={eyebrow}>03 · CURRENT INVENTORY</div>
-    <h2 style={{margin:"10px 0 6px"}}>Three live PennyTools</h2>
-    <p style={muted}>These were built to prove the rail. Keep them live as cheap inventory while Radar chooses the first demand-led tool.</p>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10,marginTop:14}}>
-      <div style={mini}><strong>JSON canonicalize</strong><span>/api/tools/json-canonicalize</span><b>$0.001</b></div>
-      <div style={mini}><strong>Text stats</strong><span>/api/tools/text-stats</span><b>$0.001</b></div>
-      <div style={mini}><strong>Strip tracking</strong><span>/api/tools/strip-tracking</span><b>$0.001</b></div>
-    </div>
-  </section>
+    <section style={box}>
+      <div style={label}>CONTROL</div>
+      {authChecked&&rememberedAuth?<div style={{fontSize:11,color:"#b8c9a8",marginBottom:12}}>Admin access remembered on this browser ✓</div>:null}
+      {!rememberedAuth?<>
+        <input value={token} onChange={(e:any)=>setToken(e.target.value)} placeholder="RADAR_ADMIN_TOKEN" type="password" autoComplete="off" style={input}/>
+        <button disabled={!token||!!busy} onClick={rememberAccess} style={primary}>{busy==="remember"?"Remembering…":"Remember admin access"}</button>
+      </>:<button disabled={!!busy} onClick={forgetAccess} style={button}>{busy==="forget"?"Forgetting…":"Forget admin access"}</button>}
+      {authResult?.error?<div style={{fontSize:11,color:"#d38c8c",marginTop:10}}>{authResult.error}</div>:null}
+      <div style={{marginTop:12}}>
+        <button disabled={!hasAdmin||!!busy} onClick={publish} style={primary}>
+          {busy==="publish"?"Publishing inventory…":"Publish inventory"}
+        </button>
+        <button disabled={!!busy} onClick={loadCatalog} style={button}>
+          {busy==="catalog"?"Loading…":"Inventory check"}
+        </button>
+        <a href="https://www.x402scan.com/resources/register" target="_blank" rel="noreferrer" style={link}>Add to x402scan ↗</a>
+      </div>
+      <div style={{fontSize:10,color:"#666",marginTop:10}}>Origin to register: pennyrail.vercel.app</div>
+    </section>
 
-  <details style={{...card,marginTop:16}}>
-    <summary style={{cursor:"pointer",fontWeight:700}}>Infrastructure / deeper intel</summary>
-    <p style={muted}>The rail is already proven. These controls stay available without dominating the product.</p>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:12}}>
-      <div style={miniCard}><h3>Market snapshot</h3><button style={btn} onClick={loadMarket}>Refresh market</button><pre style={pre}>{market?JSON.stringify(market,null,2):"Not loaded"}</pre></div>
-      <div style={miniCard}><h3>Paid intelligence</h3><p style={muted}>Requires Base mainnet USDC in PennyRail's buyer wallet.</p><button style={btn} onClick={loadPaid}>Buy Demand Radar + Bestsellers</button><pre style={pre}>{paid?JSON.stringify(paid,null,2):"Not purchased"}</pre></div>
-      <div style={miniCard}><h3>Buyer wallet</h3><button style={btn} onClick={loadWallet}>Show wallet</button><button style={{...btn,marginLeft:8}} onClick={fundWallet}>Testnet faucet</button><pre style={pre}>{wallet?JSON.stringify(wallet,null,2):"Not loaded"}</pre></div>
-      <div style={miniCard}><h3>Rail self-test</h3><button style={btn} onClick={runSelfTest}>Run self-test</button><pre style={pre}>{selfTest?JSON.stringify(selfTest,null,2):"Not run"}</pre></div>
-      <div style={miniCard}><h3>Coinbase diagnostics</h3><button style={btn} onClick={runDiagnostics}>Run diagnostics</button><pre style={pre}>{diagnostics?JSON.stringify(diagnostics,null,2):"Not run"}</pre></div>
-    </div>
-  </details>
-  <style jsx>{`@media(max-width:800px){.radar-grid{grid-template-columns:1fr!important}}`}</style>
- </main>
+    {publication?<JsonBox value={publication}/>:null}
+    {catalog?<JsonBox value={{capabilityCount:catalog.capabilityCount,priceUsdPerRun:catalog.priceUsdPerRun,firstFive:catalog.capabilities?.slice(0,5)}}/>:null}
+
+    <section style={{...box,marginTop:16,color:"#777",fontSize:11,lineHeight:1.7}}>
+      Revenue Engine live: exact paid-demand mappings + market-aligned micro-prices + optional OpenAI upstream broker. Outbound layer: the402 direct catalog + real-time request bidding when configured. Distribution: x402scan + Agent402 index + true402 + x402 List review.
+    </section>
+  </main>
 }
 
-const card={border:"1px solid #23252b",background:"#111317",borderRadius:18,padding:20} as const;
-const heroCard={...card,background:"linear-gradient(145deg,#15171b,#0e1013)"} as const;
-const miniCard={border:"1px solid #24262a",borderRadius:14,padding:14,background:"#0d0f12"} as const;
-const muted={color:"#999",lineHeight:1.55} as const;
-const eyebrow={fontSize:11,letterSpacing:2.2,color:"#9f9272"} as const;
-const btn={background:"#e8dfcd",color:"#111",border:0,borderRadius:10,padding:"10px 14px",fontWeight:700,cursor:"pointer",margin:"8px 0"} as const;
-const primaryBtn={...btn,padding:"13px 18px",marginTop:10,fontSize:15} as const;
-const pre={maxHeight:260,overflow:"auto",fontSize:10,background:"#090a0c",padding:12,borderRadius:10,whiteSpace:"pre-wrap",color:"#aaa"} as const;
-const errorPre={...pre,border:"1px solid #5a2f2f",color:"#d8b1b1",marginTop:16} as const;
-const input={width:"100%",padding:11,borderRadius:9,border:"1px solid #333",background:"#0b0c0f",color:"#eee"} as const;
-const emptyState={marginTop:20,border:"1px dashed #303238",borderRadius:13,padding:18,color:"#777",fontSize:13,lineHeight:1.55} as const;
-const oppRow={display:"flex",gap:14,alignItems:"flex-start",padding:"13px 0",borderTop:"1px solid #24262a"} as const;
-const pill={display:"inline-block",padding:"4px 7px",borderRadius:999,fontSize:10,fontWeight:800,letterSpacing:1} as const;
-const buildPill={background:"#d9d0b9",color:"#151515"} as const;
-const watchPill={background:"#292a27",color:"#d4c8a9",border:"1px solid #4a473e"} as const;
-const ignorePill={background:"#191b1e",color:"#777",border:"1px solid #292b2e"} as const;
-const mini={border:"1px solid #25272b",borderRadius:13,padding:14,display:"flex",flexDirection:"column",gap:8,background:"#0d0f12"} as const;
+function JsonBox({value,copyValue,copyLabel="Copy JSON"}:{value:any,copyValue?:any,copyLabel?:string}){
+  const [copied,setCopied]=useState(false);
+  const display=JSON.stringify(value,null,2);
+  const copy=JSON.stringify(copyValue??value,null,2);
+  async function doCopy(){
+    try{await navigator.clipboard.writeText(copy);setCopied(true);setTimeout(()=>setCopied(false),1600);}catch{}
+  }
+  return <div style={{position:"relative",marginTop:16}}>
+    <button onClick={doCopy} style={copyButton}>{copied?"Copied ✓":copyLabel}</button>
+    <pre style={{...pre,marginTop:0,paddingTop:46}}>{display}</pre>
+  </div>
+}
+
+function Metric({title,value}:{title:string,value:string}){
+  return <div style={metric}><div style={{fontSize:10,color:"#777",marginBottom:8}}>{title}</div><div style={{fontSize:24}}>{value}</div></div>
+}
+
+const box={border:"1px solid #23262b",background:"#0d0f12",padding:18} as const;
+const label={fontSize:10,letterSpacing:1.8,color:"#817966",marginBottom:14} as const;
+const metrics={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(135px,1fr))",gap:8} as const;
+const metric={border:"1px solid #202329",background:"#090b0e",padding:14} as const;
+const input={width:"100%",boxSizing:"border-box",padding:11,background:"#090b0e",border:"1px solid #30333a",color:"#ddd",marginBottom:10} as const;
+const button={display:"inline-block",padding:"10px 13px",marginRight:8,border:"1px solid #34373d",background:"#15181d",color:"#bbb",cursor:"pointer",textDecoration:"none",fontSize:12} as const;
+const primary={...button,background:"#d9d0b9",color:"#111",fontWeight:700} as const;
+const link={...button,color:"#d0c7b4"} as const;
+const pre={padding:14,background:"#08090b",border:"1px solid #23262b",fontSize:10,whiteSpace:"pre-wrap",overflow:"auto",maxHeight:520} as const;
+const copyButton={...button,position:"absolute",right:8,top:8,zIndex:2,marginRight:0,padding:"7px 10px",fontSize:10,background:"#1a1d22"} as const;
