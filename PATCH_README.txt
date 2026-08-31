@@ -1,23 +1,26 @@
-PennyRail v38.3 — x402 List verification hotfix
-
-Changed/new project files:
-  app/api/radar/x402-list/route.ts
-  app/r/7f2d4c/page.tsx
+PennyRail v38.4 — x402 verification probe compatibility
 
 Purpose:
-- Show PennyRail's live x402 List status directly in Radar.
-- Add one-click paid x402 List delivery verification with a hard $0.30 ceiling.
-- Clearly distinguish a directory verification settlement from organic customer revenue.
-- Refresh stale Radar copy now that x402 List and the official MCP Registry are live.
+- x402 List verify-live selects PennyRail's cheapest Base-USDC endpoint.
+- PennyRail has many endpoints tied at $0.001.
+- The verifier can pay a valid x402 challenge but provide no business input.
+- Previously that caused the post-payment handler to return HTTP 400.
+- This patch makes the complete $0.001 submission tier deterministic and probe-safe
+  when no input is supplied, while marking those responses inputDefaulted=true.
+
+Changed files:
+  app/api/tools/strip-tracking/route.ts
+  app/api/tools/text-stats/route.ts
+  app/api/tools/json-canonicalize/route.ts
+  app/api/f/[operation]/route.ts
 
 Suggested branch:
-  x402-list-verify-v38-3
+  x402-probe-safe-v38-4
 
 Suggested commit:
-  Add x402 List verification to Radar
+  Make x402 verification probes deliver successfully
 
 After Production is green:
-1. Open Radar.
-2. Click "Check x402 List".
-3. If Payment-ready = YES and Verified = NO, click "Verify delivery · max $0.30".
-4. Paste the returned JSON into ChatGPT.
+1. Do NOT immediately pay another verification fee.
+2. Open the Radar and click Check x402 List once to confirm payment-ready remains YES.
+3. Then return to ChatGPT. We will decide whether to retry Verify delivery.
