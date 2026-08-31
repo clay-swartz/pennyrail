@@ -351,16 +351,77 @@ export async function GET(req: NextRequest) {
     },
   ]));
 
+  const routerPrices: Record<string,string> = {
+    nano:"0.001", mini:"0.002", network:"0.003", micro:"0.004", intel:"0.005",
+    standard:"0.01", premium:"0.02", skill:"0.05", analyst:"0.20",
+  };
+  const genericRouterBody = {
+    type:"object",
+    properties:{
+      intent:{type:"string",description:"Natural-language task. Omit when productId is supplied."},
+      productId:{type:"string",description:"Optional exact PennyRail product id returned by find/quote."},
+      input:{description:"Input passed to the resolved PennyRail product."},
+    },
+    additionalProperties:true,
+  };
+  const routerExecutePaths=Object.fromEntries(Object.entries(routerPrices).map(([tier,amount]) => [
+    `/api/router/execute/${tier}`,
+    {
+      post:{
+        operationId:`router_execute_${tier}`,
+        summary:`Execute a ${tier} PennyRail capability through the universal router`,
+        description:"Paid universal execution. Use free /api/router/find and /api/router/quote first; one x402 payment executes the quoted PennyRail-owned capability by exact productId with no second tool payment.",
+        tags:["pennyrail","router","execute",tier],
+        "x-price":`$${amount}`,
+        "x-payment-info":paymentInfo(amount),
+        requestBody:{required:true,content:{"application/json":{schema:genericRouterBody,example:{intent:"search the live web",input:{q:"latest x402 news",count:5}}}}},
+        responses:{
+          "200":{description:"Successful routed execution",content:{"application/json":{schema:{type:"object",additionalProperties:true}}}},
+          "400":{description:"Invalid productId/input or wrong tier"},
+          "402":{description:"Payment Required"},
+        },
+      },
+    },
+  ]));
+
   return NextResponse.json({
     openapi:"3.1.0",
     info:{
       title:"PennyRail",
-      version:"0.7.0",
-      description:`${FACTORY_CAPABILITIES.length + 3} core utilities plus ${revenueRoutes.length} demand-aligned Revenue Engine product aliases.`,
-      "x-guidance":"PennyRail continuously audits machine demand and exposes demand-aligned paid products. Search GET /api/revenue/catalog?q=<need> first; then call the returned /api/p/* route. Core /api/f/* utilities remain available at $0.001 USDC on Base.",
+      version:"0.8.0",
+      description:`PennyRail Transaction Router: free intent discovery/quoting plus ${FACTORY_CAPABILITIES.length + 3} core utilities and ${revenueRoutes.length} demand-aligned paid product aliases.`,
+      "x-guidance":"Start with free GET /api/router/find?q=<need> or /api/router/quote. Pay only the returned /api/router/execute/<tier> endpoint to execute the selected capability. Direct /api/p/* and /api/f/* routes remain available.",
     },
     servers:[{url:origin}],
     paths:{
+      "/api/router/find":{
+        get:{
+          operationId:"router_find",
+          summary:"Find PennyRail capabilities from natural-language intent — free",
+          description:"Free discovery. Returns ranked configured capabilities, prices, product ids and the paid execution tier for each candidate.",
+          tags:["pennyrail","router","discovery"],
+          security:[],
+          parameters:[{name:"q",in:"query",required:true,schema:{type:"string",minLength:1},example:"search the live web"},{name:"limit",in:"query",required:false,schema:{type:"integer",minimum:1,maximum:20}}],
+          responses:{"200":{description:"Ranked router candidates",content:{"application/json":{schema:{type:"object",additionalProperties:true}}}},"400":{description:"Missing intent"}},
+        },
+      },
+      "/api/router/quote":{
+        get:{
+          operationId:"router_quote_get",
+          summary:"Quote the best safe PennyRail capability — free",
+          tags:["pennyrail","router","quote"],security:[],
+          parameters:[{name:"q",in:"query",required:false,schema:{type:"string"}},{name:"productId",in:"query",required:false,schema:{type:"string"}}],
+          responses:{"200":{description:"Exact quote with executeUrl",content:{"application/json":{schema:{type:"object",additionalProperties:true}}}},"409":{description:"Ambiguous or unavailable capability"}},
+        },
+        post:{
+          operationId:"router_quote_post",
+          summary:"Quote a PennyRail capability from intent or productId — free",
+          tags:["pennyrail","router","quote"],security:[],
+          requestBody:{required:true,content:{"application/json":{schema:{type:"object",properties:{intent:{type:"string"},productId:{type:"string"}},additionalProperties:false},example:{intent:"search the live web"}}}},
+          responses:{"200":{description:"Exact quote with executeUrl",content:{"application/json":{schema:{type:"object",additionalProperties:true}}}},"409":{description:"Ambiguous or unavailable capability"}},
+        },
+      },
+      ...routerExecutePaths,
       "/api/tools/json-canonicalize":{
         post:{
           operationId:"jsonCanonicalize",

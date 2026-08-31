@@ -779,7 +779,7 @@ export async function runRevenueAudit() {
   return {
     ok: true,
     generatedAt: new Date().toISOString(),
-    mode: "REVENUE_BROKER_V36",
+    mode: "TRANSACTION_ROUTER_V37",
     sources: {
       agent402Wishes: wishesResult.status === "fulfilled" ? (publicWishIsBeaconOnly ? "beacon-only" : "ok") : "unavailable",
       agent402DemandRadar: paidDemandRows.length ? "ok-paid" : (paidIntel.demandRadarEnabled ? "upstream-empty" : "disabled-upstream-empty"),
@@ -848,7 +848,7 @@ export async function runRevenueAudit() {
       cacheHours: 6,
       worstCaseIntelSpendUsdPerDay: paidIntel.demandRadarEnabled ? 0.04 : 0.02,
       worstCaseIntelSpendUsdPer30d: paidIntel.demandRadarEnabled ? 1.2 : 0.6,
-      note: "v36 buys the proven-working Agent402 bestsellers feed every audit, aligns canonical price tiers to observed paid tickets, and only marks upstream-backed products AUTO-LIVE when their required environment keys are configured. Demand Radar stays disabled by default while its upstream itemized feed is empty.",
+      note: "v37 keeps the proven-demand broker, adds a free intent/quote layer and one paid universal execute endpoint per price tier so agents can buy from the whole configured PennyRail portfolio without discovering individual product URLs. Demand Radar stays disabled while its upstream itemized feed is empty.",
     },
   };
 }
