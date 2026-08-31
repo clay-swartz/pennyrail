@@ -1,13 +1,14 @@
 import { unstable_cache } from "next/cache";
 import { runRevenueAudit } from "@/lib/revenue-engine";
 
-// Market intelligence remains shared for six hours, but runtime capability
-// configuration is part of the cache identity. Adding/removing an upstream
-// key can therefore never leave PennyRail advertising a stale portfolio.
+// v41: revenue intelligence refreshes hourly when invoked.
+// The scheduled hourly GitHub workflow guarantees an invocation even when
+// external crawler traffic is quiet. The audit itself hard-caps paid
+// intelligence spend at $0.01 per fresh refresh.
 const cachedRevenueAudit = unstable_cache(
   async (_configurationSignature: string) => runRevenueAudit(),
-  ["pennyrail-transaction-router-v37"],
-  { revalidate: 21_600 },
+  ["pennyrail-autonomous-demand-sniper-v41"],
+  { revalidate: 3_600 },
 );
 
 function configurationSignature() {

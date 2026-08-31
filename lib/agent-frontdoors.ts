@@ -14,6 +14,12 @@ function isEmptyObject(value: unknown) {
   );
 }
 
+function usd(price: string) {
+  const parsed = Number(price.replace("$", ""));
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`invalid frontdoor price ${price}`);
+  return parsed;
+}
+
 async function requestInput(req: NextRequest, probeInput: unknown) {
   try {
     const body = await req.json();
@@ -35,6 +41,8 @@ export function createRouterFrontdoor(args: {
   description: string;
   probeInput: unknown;
 }) {
+  const paidPriceUsd = usd(args.price);
+
   const handler = async (req: NextRequest): Promise<NextResponse<any>> => {
     try {
       const input = await requestInput(req, args.probeInput);
@@ -44,7 +52,9 @@ export function createRouterFrontdoor(args: {
       });
       return NextResponse.json({
         ...result,
-        acquisitionSurface: "pennyrail-demand-frontdoor",
+        referenceTierPriceUsd: result.priceUsd,
+        priceUsd: paidPriceUsd,
+        acquisitionSurface: "pennyrail-demand-sniper",
       });
     } catch (error) {
       return NextResponse.json(
@@ -63,6 +73,8 @@ export function createFactoryFrontdoor(args: {
   description: string;
   probeInput: unknown;
 }) {
+  const paidPriceUsd = usd(args.price);
+
   const handler = async (req: NextRequest): Promise<NextResponse<any>> => {
     try {
       const input = await requestInput(req, args.probeInput);
@@ -70,8 +82,8 @@ export function createFactoryFrontdoor(args: {
       return NextResponse.json({
         ok: true,
         operation: args.operation,
-        priceUsd: Number(args.price.replace("$", "")),
-        acquisitionSurface: "pennyrail-demand-frontdoor",
+        priceUsd: paidPriceUsd,
+        acquisitionSurface: "pennyrail-demand-sniper",
         result,
       });
     } catch (error) {
