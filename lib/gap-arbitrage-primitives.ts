@@ -212,8 +212,10 @@ function actualType(value:any) {
   return typeof value;
 }
 
-function typeMatches(value:any, typeRule:any) {
-  if (Array.isArray(typeRule)) return typeRule.some(t => typeMatches(value, t));
+function typeMatches(value: any, typeRule: any): boolean {
+  if (Array.isArray(typeRule)) {
+    return typeRule.some((t: any): boolean => typeMatches(value, t));
+  }
   if (!typeRule) return true;
   const t = actualType(value);
   if (typeRule === "number") return t === "number" || t === "integer";
