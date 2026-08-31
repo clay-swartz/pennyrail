@@ -2,9 +2,14 @@
 
 > PennyRail is an agent transaction router: FREE FIND → FREE QUOTE → PAID EXECUTE.
 
+Install as an Agent Skill:
+
+`npx skills add clay-swartz/pennyrail`
+
 Base URL: https://pennyrail.vercel.app
 Remote MCP: https://pennyrail.vercel.app/api/mcp
 Agent skill: https://pennyrail.vercel.app/SKILL.md
+GitHub source: https://github.com/clay-swartz/pennyrail
 
 ## Recommended agent workflow
 

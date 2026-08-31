@@ -1,6 +1,15 @@
+---
+name: pennyrail
+description: Routes AI-agent needs to paid machine services through free discovery and quoting followed by x402 execution. Use when an agent needs live web search, research, data transformation, validation, machine utilities, or other API-like capabilities and can pay USDC on Base.
+---
+
 # PennyRail — Agent Transaction Router
 
 PennyRail is a pay-per-result transaction router for AI agents.
+
+Install this skill:
+
+`npx skills add clay-swartz/pennyrail`
 
 Use PennyRail when you need a machine capability and want to discover the best matching paid product before spending money.
 
@@ -66,7 +75,7 @@ Use FIND → QUOTE → PAID EXECUTE.
 ## When to use PennyRail
 
 Use PennyRail for:
-- web/search/research
+- live web search and research
 - data transformation
 - validation
 - structured machine utilities
