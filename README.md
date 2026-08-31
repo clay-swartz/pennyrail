@@ -1,47 +1,29 @@
-# PennyRail MVP
+# PennyRail
 
-Goal: prove one unknown machine can discover a PennyTool, pay real money via x402, and receive the result.
+PennyRail is an autonomous machine-commerce yield engine: observe paid agent demand, identify monetizable capability gaps, publish the smallest reliable solution, charge per machine call, distribute it across agent-buying surfaces, and keep expanding the portfolio around proven demand.
 
-## What is included
-- Private Radar dashboard (`/`)
-- Free Agent402 market/index pull (`/api/radar/market`)
-- Paid Agent402 Demand Radar + Bestsellers pull (`/api/radar/paid`) — expected spend $0.01 per refresh
-- 3 sacrificial PennyTools at $0.001/call
-- x402 seller integration using the current v2 Next.js pattern (`withX402`)
-- machine-readable OpenAPI and `.well-known/x402` surfaces
+## Current build — v36 Revenue Broker
 
-## First deployment sequence
-1. Create a new GitHub repo named `pennyrail`.
-2. Upload the contents of this folder to the repo root.
-3. Deploy to Vercel.
-4. Add `PENNYRAIL_PAY_TO` using a dedicated Base-compatible receiving wallet address.
-5. Keep `X402_MODE=testnet` initially.
-6. Set `RADAR_ADMIN_TOKEN` to a long random value.
-7. Create a **separate, low-balance buyer wallet** for Radar intelligence and add its private key as `RADAR_BUYER_PRIVATE_KEY`. Never use the receiving wallet's private key here.
-8. Test the three tools on Base Sepolia.
-9. Switch `X402_MODE=mainnet` only after testnet works and fund the buyer wallet with a small amount of Base USDC.
-10. Register the deployed origin with Agent402 (`POST /api/index/register` on agent402.tools) or use its seller registration page. Agent402 says listing is free.
+Current revenue loop:
 
-## Why the first tools are boring
-They are sacrificial canaries. We are testing discovery + payment + settlement. Radar should choose the next tools from actual unmet demand rather than our guesses.
+`PAID DEMAND → MAP/GAP → BUILD REUSABLE PRIMITIVE → PRICE → PUBLISH → SELL/BID → MEASURE → MULTIPLY`
 
-## Phase 2
-- persist Radar snapshots in Supabase
-- compute opportunity score = demand + recency + weak competition + poor incumbent health + price headroom - build cost
-- create a human approval queue for proposed tools
-- generate endpoint implementation/tests/manifest from approved proposal
-- deploy tool and monitor calls, buyers, revenue, uptime, margin
-- repricing/retirement rules
+The production stack includes:
+- Base USDC x402 settlement with the proven Coinbase facilitator integration
+- 47 original factory capabilities plus proven-demand templates
+- dynamic revenue-product routes and machine-readable OpenAPI/x402 discovery
+- paid Agent402 Bestsellers intelligence every six hours (Demand Radar disabled while its upstream itemized feed is empty)
+- x402scan registration and x402 List review submission
+- the402 provider/catalog/request-bidding integration
+- optional OpenAI upstream broker capabilities, including live web search
+- private Radar dashboard with on-chain outside-revenue tracking, remembered admin access and one-click JSON copying
 
-## Security
-- `PENNYRAIL_PAY_TO` is only a public receiving address.
-- Keep the Radar buyer wallet tiny and separate.
-- Never commit a private key to GitHub.
-- Before mainnet, cap the Radar buyer wallet balance and paid refresh cadence.
+See `README_REVENUE_BROKER_V36.md` for the current revenue build. Historical version notes are intentionally preserved in the versioned README files.
 
-## Current x402 assumptions
-Built from x402 v2 docs available Aug 2026: `@x402/next`, `@x402/core`, `@x402/evm`; Base Sepolia testnet `eip155:84532`; Base mainnet `eip155:8453`; test facilitator `https://x402.org/facilitator`; mainnet default set to Coinbase's documented facilitator endpoint.
+## Production secrets
 
+Secrets belong in Vercel Production environment variables only. Never commit admin tokens, wallet credentials, provider API keys, webhook secrets or OpenAI keys to the repository.
 
-## Build fix v2
-The x402 network identifier is explicitly typed as a CAIP-2 network (`${string}:${string}`), preserving `eip155:8453` / `eip155:84532` as the type expected by @x402/core RouteConfig.
+## Operating objective
+
+Maximize aggregate machine-commerce gross profit across many tiny transactions. Current internal target: at least $1,000/day / $30,000/month, with no architecture ceiling. This is a target, not a guarantee.

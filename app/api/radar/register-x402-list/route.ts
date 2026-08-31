@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isRadarAdmin } from "@/lib/radar-auth";
 import { FACTORY_CAPABILITIES } from "@/lib/factory";
 import { buyerAccount } from "@/lib/radar-buyer";
 import { wrapFetchWithPayment } from "@x402/fetch";
@@ -11,10 +12,7 @@ const SUBMIT_URL = "https://x402-list.com/api/v1/submit";
 const BASE_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
 const APPROVED_MAX_ATOMIC = 1_000_000n; // $1.00 USDC, 6 decimals.
 
-function authorized(req: NextRequest) {
-  return Boolean(process.env.RADAR_ADMIN_TOKEN) &&
-    req.headers.get("x-admin-token") === process.env.RADAR_ADMIN_TOKEN;
-}
+function authorized(req: NextRequest) { return isRadarAdmin(req); }
 
 function publicOrigin(req: NextRequest) {
   const explicit = process.env.PENNYRAIL_PUBLIC_URL?.trim();

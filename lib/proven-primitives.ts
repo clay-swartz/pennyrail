@@ -1,16 +1,19 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { runFactoryOperation } from "@/lib/factory";
+import { runOpenAiWebSearch, runExactTokenCount, runHttpHeaders, runOpenAiChat, runOpenAiEmbedding, runOpenAiModeration, runPageMetadata } from "@/lib/revenue-upstreams";
 
 export type ProvenProduct = {
   id: string;
   title: string;
   description: string;
   aliases: string[];
-  tier: "nano" | "network" | "micro" | "standard";
+  tier: "nano" | "mini" | "network" | "micro" | "intel" | "standard" | "premium" | "skill" | "analyst";
   inputHint: string;
   sampleInput: unknown;
   source: "template";
   template: string;
+  requiresEnv?: string[];
+  legacyTiers?: Array<"nano" | "mini" | "network" | "micro" | "intel" | "standard" | "premium" | "skill" | "analyst">;
 };
 
 export const PROVEN_PRODUCTS: ProvenProduct[] = [
@@ -173,7 +176,8 @@ export const PROVEN_PRODUCTS: ProvenProduct[] = [
     title: "Known EVM address label",
     description: "Label a curated set of major token contracts, DEX routers, system and burn addresses; unknown addresses return found:false.",
     aliases: ["address label", "evm address label", "known address lookup", "contract address label"],
-    tier: "nano",
+    tier: "mini",
+    legacyTiers: ["nano"],
     inputHint: "{address,network?:ethereum|base}",
     sampleInput: { address: "0x833589fCD6eDb6E08f4c7c32D4f71b54bdA02913", network: "base" },
     source: "template",
@@ -195,7 +199,8 @@ export const PROVEN_PRODUCTS: ProvenProduct[] = [
     title: "x402 seller momentum",
     description: "Rank currently payment-ready x402 services by measured buyers, transactions, volume or recent trend using x402 List traction data.",
     aliases: ["x402 trending", "x402 sellers trending", "x402 momentum", "top x402 sellers", "x402 market radar"],
-    tier: "micro",
+    tier: "intel",
+    legacyTiers: ["micro"],
     inputHint: "{sort?:buyers|transactions|volume|trend,limit?:1..50}",
     sampleInput: { sort: "buyers", limit: 10 },
     source: "template",
@@ -206,7 +211,8 @@ export const PROVEN_PRODUCTS: ProvenProduct[] = [
     title: "Locale brief",
     description: "Country facts, current local time, public holidays and working days remaining this week in one call.",
     aliases: ["locale brief", "country holiday brief", "working days remaining", "counterparty locale", "country time holidays"],
-    tier: "standard",
+    tier: "skill",
+    legacyTiers: ["standard"],
     inputHint: "{countryCode:2-letter ISO}",
     sampleInput: { countryCode: "DE" },
     source: "template",
@@ -239,15 +245,144 @@ export const PROVEN_PRODUCTS: ProvenProduct[] = [
     title: "JWT toolkit",
     description: "Decode JWT header/claims, normalize time claims and optionally verify HMAC JWTs (HS256/384/512) with constant-time comparison.",
     aliases: ["jwt toolkit", "jwt decode", "jwt inspect", "jwt verify hmac", "token claims"],
-    tier: "standard",
+    tier: "skill",
+    legacyTiers: ["standard"],
     inputHint: "{token,secret?}",
     sampleInput: { token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMifQ.invalid" },
     source: "template",
     template: "jwt-toolkit",
   },
+  {
+    id: "web.search",
+    title: "Live web search",
+    description: "Live web search for agents using OpenAI web search, returning a grounded answer plus ranked source URLs/titles with a one-search-call billing guard.",
+    aliases: ["search", "web search", "live web search", "search the web", "fresh web results"],
+    tier: "premium",
+    inputHint: "{q|query,count?:1..10,freshness?:pd|pw|pm|py,country?}",
+    sampleInput: { query: "x402 agent commerce", count: 10, freshness: "pw" },
+    source: "template",
+    template: "web-search",
+    requiresEnv: ["OPENAI_API_KEY"],
+  },
+  {
+    id: "web.page-meta",
+    title: "Page metadata",
+    description: "Fetch HTML page metadata: title, description, canonical URL, favicon, OpenGraph and Twitter card fields with SSRF protection.",
+    aliases: ["meta", "page metadata", "website metadata", "open graph metadata", "url metadata"],
+    tier: "mini",
+    inputHint: "{url:string}",
+    sampleInput: { url: "https://example.com" },
+    source: "template",
+    template: "page-meta",
+  },
+  {
+    id: "web.http-headers",
+    title: "HTTP headers + security analysis",
+    description: "Fetch response headers for a public URL and score common browser security headers while flagging weak HSTS and identity leaks.",
+    aliases: ["http headers", "security headers", "website headers", "header security analysis"],
+    tier: "network",
+    inputHint: "{url:string}",
+    sampleInput: { url: "https://example.com" },
+    source: "template",
+    template: "http-headers",
+  },
+  {
+    id: "text.token-count",
+    title: "Exact LLM token count",
+    description: "Count exact BPE tokens offline with o200k_base or cl100k_base for context budgeting without a model call.",
+    aliases: ["token count", "llm token count", "count tokens", "openai tokens", "bpe token count"],
+    tier: "nano",
+    inputHint: "{text:string,encoding?:o200k_base|cl100k_base}",
+    sampleInput: { text: "PennyRail stacks tiny paid calls.", encoding: "o200k_base" },
+    source: "template",
+    template: "token-count",
+  },
+  {
+    id: "ai.chat-mini",
+    title: "OpenAI-compatible mini chat",
+    description: "Low-cost GPT-4o-mini chat completion with bounded text input/output, optional tools and structured response format.",
+    aliases: ["v1 chat", "chat completion", "openai compatible chat", "gpt 4o mini chat", "agent chat"],
+    tier: "premium",
+    inputHint: "{messages:[{role,content}],max_tokens?:1..2048,temperature?,response_format?,tools?}",
+    sampleInput: { messages: [{ role: "user", content: "Return three tags for machine commerce." }], max_tokens: 128 },
+    source: "template",
+    template: "openai-chat",
+    requiresEnv: ["OPENAI_API_KEY"],
+  },
+  {
+    id: "ai.llm-mini",
+    title: "Bounded LLM inference",
+    description: "Bounded GPT-4o-mini inference for short machine tasks, capped to protect margin while supporting structured output.",
+    aliases: ["llm", "llm inference", "cheap llm", "gpt 4o mini inference"],
+    tier: "standard",
+    inputHint: "{prompt|string|messages,max_tokens?:1..1024,response_format?}",
+    sampleInput: { prompt: "Classify: PennyRail sells machine utilities. Return one label." },
+    source: "template",
+    template: "openai-llm",
+    requiresEnv: ["OPENAI_API_KEY"],
+  },
+  {
+    id: "ai.moderate",
+    title: "Content moderation",
+    description: "OpenAI omni-moderation-latest harmful-content classification for bounded text with category scores.",
+    aliases: ["moderate", "content moderation", "safety classification", "harmful content check"],
+    tier: "mini",
+    inputHint: "{text:string<=10000 chars}",
+    sampleInput: { text: "A normal product description." },
+    source: "template",
+    template: "openai-moderation",
+    requiresEnv: ["OPENAI_API_KEY"],
+  },
+  {
+    id: "ai.embed-small",
+    title: "Text embeddings",
+    description: "Generate text-embedding-3-small vectors for semantic search, RAG, clustering and similarity workflows.",
+    aliases: ["embed", "text embeddings", "embedding vector", "semantic embedding"],
+    tier: "intel",
+    inputHint: "{input:string|string[],dimensions?}",
+    sampleInput: { input: "machine commerce" },
+    source: "template",
+    template: "openai-embed-small",
+    requiresEnv: ["OPENAI_API_KEY"],
+  },
+  {
+    id: "ai.embed-large",
+    title: "Large text embeddings",
+    description: "Generate text-embedding-3-large vectors for higher-accuracy semantic search, RAG and clustering.",
+    aliases: ["embed large", "large embeddings", "text embedding 3 large", "high accuracy embeddings"],
+    tier: "standard",
+    inputHint: "{input:string|string[],dimensions?}",
+    sampleInput: { input: "machine commerce" },
+    source: "template",
+    template: "openai-embed-large",
+    requiresEnv: ["OPENAI_API_KEY"],
+  },
+  {
+    id: "ai.v1-embeddings",
+    title: "OpenAI-compatible embeddings",
+    description: "OpenAI-style text embeddings backed by text-embedding-3-small with bounded batching for agent SDK compatibility.",
+    aliases: ["v1 embeddings", "openai compatible embeddings", "embedding api", "batch embeddings"],
+    tier: "mini",
+    inputHint: "{input:string|string[],dimensions?}",
+    sampleInput: { input: ["PennyRail", "machine commerce"] },
+    source: "template",
+    template: "openai-embed-small",
+    requiresEnv: ["OPENAI_API_KEY"],
+  },
+
 ];
 
 export const BESTSELLER_PRODUCT_MAP: Record<string, string> = {
+  search: "web.search",
+  "v1-chat": "ai.chat-mini",
+  meta: "web.page-meta",
+  llm: "ai.llm-mini",
+  moderate: "ai.moderate",
+  "token-count": "text.token-count",
+  "embed-large": "ai.embed-large",
+  embed: "ai.embed-small",
+  "http-headers": "web.http-headers",
+  "v1-embeddings": "ai.v1-embeddings",
   random: "utility.random-secure",
   uuid: "utility.uuid-generate",
   hash: "crypto.hash-multi",
@@ -502,6 +637,15 @@ export async function runProvenPrimitive(template:string,input:any):Promise<any>
     case "openapi-search": return openApiSearch(input);
     case "openapi-mock": return openApiMock(input);
     case "jwt-toolkit": return jwtToolkit(input);
+    case "web-search": return runOpenAiWebSearch(input);
+    case "page-meta": return runPageMetadata(input);
+    case "http-headers": return runHttpHeaders(input);
+    case "token-count": return runExactTokenCount(input);
+    case "openai-chat": return runOpenAiChat(input, "chat");
+    case "openai-llm": return runOpenAiChat(input, "llm");
+    case "openai-moderation": return runOpenAiModeration(input);
+    case "openai-embed-small": return runOpenAiEmbedding(input, "text-embedding-3-small");
+    case "openai-embed-large": return runOpenAiEmbedding(input, "text-embedding-3-large");
     default: throw new Error("unknown proven primitive");
   }
 }

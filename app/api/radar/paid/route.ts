@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isRadarAdmin } from "@/lib/radar-auth";
 import { paidFetch } from "@/lib/radar-buyer";
 export const dynamic = "force-dynamic";
 export async function GET(req:NextRequest){
-  if(!process.env.RADAR_ADMIN_TOKEN || req.headers.get('x-admin-token')!==process.env.RADAR_ADMIN_TOKEN) return NextResponse.json({error:'unauthorized'},{status:401});
+  if(!isRadarAdmin(req)) return NextResponse.json({error:'unauthorized'},{status:401});
   try{
     const pf=await paidFetch();
     const [d,b]=await Promise.all([

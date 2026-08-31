@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isRadarAdmin } from "@/lib/radar-auth";
 import { paidFetch } from "@/lib/radar-buyer";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +49,7 @@ function isTextStatsResult(body: unknown) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.RADAR_ADMIN_TOKEN || req.headers.get("x-admin-token") !== process.env.RADAR_ADMIN_TOKEN) {
+  if (!isRadarAdmin(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

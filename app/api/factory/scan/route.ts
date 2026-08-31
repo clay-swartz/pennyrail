@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isRadarAdmin } from "@/lib/radar-auth";
 import { paidFetch } from "@/lib/radar-buyer";
 import { FACTORY_CAPABILITIES, matchCapability } from "@/lib/factory";
 
@@ -6,9 +7,7 @@ export const dynamic = "force-dynamic";
 
 type AnyRow = Record<string, any>;
 
-function authorized(req: NextRequest) {
-  return Boolean(process.env.RADAR_ADMIN_TOKEN) && req.headers.get("x-admin-token") === process.env.RADAR_ADMIN_TOKEN;
-}
+function authorized(req: NextRequest) { return isRadarAdmin(req); }
 
 function objectKeys(value: any) {
   return value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value).slice(0, 30) : [];

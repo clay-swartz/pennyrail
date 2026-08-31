@@ -1,13 +1,11 @@
 import { createPrivateKey } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { isRadarAdmin } from "@/lib/radar-auth";
 import { BUYER_ACCOUNT_NAME, getCdpClient } from "@/lib/radar-buyer";
 
 export const dynamic = "force-dynamic";
 
-function authorized(req: NextRequest) {
-  return Boolean(process.env.RADAR_ADMIN_TOKEN) &&
-    req.headers.get("x-admin-token") === process.env.RADAR_ADMIN_TOKEN;
-}
+function authorized(req: NextRequest) { return isRadarAdmin(req); }
 
 function value(name: string) {
   return process.env[name]?.trim() || "";
