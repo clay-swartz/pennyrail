@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.clay-swartz/pennyrail",
+  "title": "PennyRail Transaction Router",
+  "description": "Find and quote machine capabilities from one MCP server, then pay only the selected x402 execution URL. PennyRail routes natural-language agent intent into a growing portfolio of paid machine services.",
+  "version": "0.9.0",
+  "repository": {
+    "url": "https://github.com/clay-swartz/pennyrail",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://pennyrail.vercel.app/api/mcp"
+    }
+  ]
+}
