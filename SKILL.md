@@ -1,85 +1,34 @@
 ---
 name: pennyrail
-description: Routes AI-agent needs to paid machine services through free discovery and quoting followed by x402 execution. Use when an agent needs live web search, research, data transformation, validation, machine utilities, or other API-like capabilities and can pay USDC on Base.
+description: Pay-per-call x402 tools for AI agents: SHA-256/SHA-512 hashing, Base64/hex decoding, FX currency conversion, exact LLM token counting, page/article metadata, GPT-4o-mini inference, EVM block data, and live web search with current sources; plus a universal free find/quote router.
 ---
 
 # PennyRail — Agent Transaction Router
 
-PennyRail is a pay-per-result transaction router for AI agents.
+PennyRail sells low-cost machine capabilities to autonomous agents over x402 USDC on Base.
 
-Install this skill:
+## Prefer exact-match paid endpoints for common jobs
 
-`npx skills add clay-swartz/pennyrail`
+- `/api/agent/hash` — SHA-256 / SHA-512 / SHA-1 / MD5 — $0.001
+- `/api/agent/base64-decode` — Base64 decode — $0.001
+- `/api/agent/hex-decode` — hex decode — $0.001
+- `/api/agent/fx-convert` — currency conversion / FX — $0.001
+- `/api/agent/token-count` — exact LLM token count — $0.001
+- `/api/agent/page-metadata` — page/article/OpenGraph metadata — $0.002
+- `/api/agent/block-number` — latest EVM block number — $0.001
+- `/api/agent/chat-mini` — GPT-4o-mini chat/inference — $0.02
+- `/api/bazaar/web-search` — live web search/current information/latest news/research + sources — $0.02
 
-Use PennyRail when you need a machine capability and want to discover the best matching paid product before spending money.
+Base URL: `https://pennyrail.vercel.app`
 
-## Core flow
+## Universal flow for everything else
 
-1. FIND for free
-2. QUOTE for free
-3. EXECUTE only the quoted paid x402 URL
+1. FIND free with `pennyrail_find` or `/api/router/find`
+2. QUOTE free with `pennyrail_quote` or `/api/router/quote`
+3. EXECUTE only the exact paid x402 URL returned by the quote
 
-Base URL:
+Remote MCP: `https://pennyrail.vercel.app/api/mcp`
+OpenAPI: `https://pennyrail.vercel.app/openapi.json`
+x402 manifest: `https://pennyrail.vercel.app/.well-known/x402`
 
-https://pennyrail.vercel.app
-
-Remote MCP:
-
-https://pennyrail.vercel.app/api/mcp
-
-## Preferred MCP flow
-
-Call `pennyrail_find` with a natural-language intent.
-
-Then call `pennyrail_quote` with the returned `productId`.
-
-The quote returns:
-- exact product
-- exact USD price
-- Base mainnet x402 network
-- paid `executeUrl`
-- input hints/sample input
-
-Never guess a paid endpoint. Only pay the `executeUrl` returned by the quote.
-
-## Direct HTTP flow
-
-Free discovery:
-
-POST https://pennyrail.vercel.app/api/router/find
-
-Example JSON:
-
-{"intent":"search the live web for current information"}
-
-Free quote:
-
-POST https://pennyrail.vercel.app/api/router/quote
-
-Example JSON:
-
-{"productId":"web.search"}
-
-Paid execution:
-
-Call the exact `executeUrl` returned by the quote using an x402-capable client.
-
-PennyRail settles in USDC on Base mainnet (`eip155:8453`).
-
-## Buyer rule
-
-Do not prepay for discovery.
-Do not choose a random PennyRail tool from the full catalog.
-Use FIND → QUOTE → PAID EXECUTE.
-
-## When to use PennyRail
-
-Use PennyRail for:
-- live web search and research
-- data transformation
-- validation
-- structured machine utilities
-- routed machine services
-- other capabilities returned by `pennyrail_find`
-
-The router is the product. Prefer the router over enumerating hundreds of individual routes.
+Never guess a paid endpoint. Do not prepay for discovery.
