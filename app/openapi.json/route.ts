@@ -1,42 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
+import { GAP_ARBITRAGE_PRODUCTS } from "@/lib/gap-arbitrage-catalog";
+
 export const dynamic = "force-dynamic";
-function origin(req: NextRequest) {
-  return (process.env.PENNYRAIL_PUBLIC_URL?.trim() || req.nextUrl.origin).replace(/\/$/, "");
+
+function origin(req:NextRequest){return (process.env.PENNYRAIL_PUBLIC_URL?.trim()||req.nextUrl.origin).replace(/\/$/,"");}
+
+const PREVIOUS:Record<string,{summary:string,description:string,price:string,example:unknown}> = {
+  "/api/agent/random":{summary:"Secure random",description:"Cryptographically secure random bytes/integers for AI agents.",price:"0.001",example:{min:1,max:100,count:3}},
+  "/api/agent/uuid":{summary:"UUID v4/v7 generator",description:"Generate random or time-ordered UUIDs.",price:"0.001",example:{version:7,count:3}},
+  "/api/agent/hash":{summary:"SHA-256 / SHA-512 hashing",description:"Hash text with SHA-256, SHA-512, SHA-1 or MD5.",price:"0.001",example:{text:"PennyRail",algorithm:"sha256"}},
+  "/api/agent/base64-decode":{summary:"Base64 decode",description:"Decode Base64 to UTF-8.",price:"0.001",example:{input:"UGVubnlSYWls"}},
+  "/api/agent/hex-decode":{summary:"Hex decode",description:"Decode hex to UTF-8.",price:"0.001",example:{input:"50656e6e795261696c"}},
+  "/api/agent/token-count":{summary:"Exact LLM token count",description:"Count o200k_base or cl100k_base BPE tokens.",price:"0.001",example:{text:"PennyRail",encoding:"o200k_base"}},
+  "/api/agent/time-convert":{summary:"Time / timezone conversion",description:"Convert epoch/ISO/timezone representations.",price:"0.001",example:{value:1767225600,timezone:"America/Chicago"}},
+  "/api/agent/text-stats":{summary:"Text statistics",description:"Character, word and line counts.",price:"0.001",example:{input:"PennyRail stacks tiny paid calls."}},
+  "/api/agent/dns":{summary:"DNS records",description:"Resolve A/AAAA/MX/TXT/CNAME/NS/CAA/SRV records.",price:"0.001",example:{domain:"example.com",type:"A"}},
+  "/api/agent/block-number":{summary:"Latest EVM block",description:"Latest Base/Ethereum/Polygon/Arbitrum/Optimism block number.",price:"0.001",example:{network:"base"}},
+  "/api/agent/weather":{summary:"Current weather",description:"Current global weather by city or coordinates.",price:"0.001",example:{city:"Dallas"}},
+  "/api/agent/fx-convert":{summary:"Currency conversion / FX",description:"Current ECB-backed currency conversion.",price:"0.001",example:{amount:100,from:"USD",to:"EUR"}},
+  "/api/agent/page-metadata":{summary:"Page/article metadata",description:"Title, description, canonical, favicon, OpenGraph and Twitter metadata.",price:"0.001",example:{url:"https://example.com"}},
+  "/api/agent/chat-mini":{summary:"GPT-4o-mini chat inference",description:"Low-cost OpenAI-compatible bounded chat completion.",price:"0.009",example:{messages:[{role:"user",content:"Reply with OK."}],max_tokens:16}},
+  "/api/agent/web-search":{summary:"Live web search + sources",description:"Current web search, latest news and research with source URLs/titles.",price:"0.018",example:{query:"latest x402 agent commerce news",count:5,freshness:"pw"}},
+};
+
+function paid(summary:string,description:string,price:string,example:unknown){
+  return {post:{summary,description,"x-price":`$${price}`,"x-payment-info":{price:{mode:"fixed",currency:"USD",amount:price},protocols:[{x402:{}}]},requestBody:{required:false,content:{"application/json":{schema:{type:"object",additionalProperties:true},example}}},responses:{"200":{description:"Successful paid PennyRail result"},"402":{description:"Payment Required — x402 USDC on Base"}}}};
 }
-const paid = (summary:string, description:string, price:string, example:unknown) => ({
-  post:{
-    summary,description,
-    "x-price":`$${price}`,
-    "x-payment-info":{price:{mode:"fixed",currency:"USD",amount:price},protocols:[{x402:{}}]},
-    requestBody:{required:false,content:{"application/json":{schema:{type:"object",additionalProperties:true},example}}},
-    responses:{"200":{description:"Successful paid PennyRail result"},"402":{description:"Payment Required — x402 USDC on Base"}}
-  }
-});
+
 export async function GET(req:NextRequest){
+  const paths:Record<string,any>={};
+  for(const [path,p] of Object.entries(PREVIOUS)) paths[path]=paid(p.summary,p.description,p.price,p.example);
+  for(const p of GAP_ARBITRAGE_PRODUCTS) paths[p.path]=paid(p.title,p.description,String(p.priceUsd),p.sampleInput);
   return NextResponse.json({
     openapi:"3.1.0",
     info:{
-      title:"PennyRail — autonomous x402 demand sniper",
-      version:"0.41.0",
-      description:"PennyRail watches what AI agents pay for and fail to find, auto-publishes matching capabilities, and price-snipes high-frequency machine work. Exact-match tools start at the $0.001 active facilitator floor on Base; free FIND and QUOTE cover the long tail."
+      title:"PennyRail — autonomous x402 paid-gap arbitrage",
+      version:"0.42.0",
+      description:"PennyRail watches real paid agent demand and unmet requests, then exposes cheaper exact-match x402 services. High-frequency deterministic calls start at $0.001; public-data/browser/data services undercut observed competing prices where sustainable."
     },
     servers:[{url:origin(req)}],
-    paths:{
-      "/api/agent/random":paid("Secure random","Cryptographically secure random bytes/integers for AI agents.","0.001",{min:1,max:100,count:3}),
-      "/api/agent/uuid":paid("UUID v4/v7 generator","Generate random or time-ordered UUIDs.","0.001",{version:7,count:3}),
-      "/api/agent/hash":paid("SHA-256 / SHA-512 hashing","Hash text with SHA-256, SHA-512, SHA-1 or MD5.","0.001",{text:"PennyRail",algorithm:"sha256"}),
-      "/api/agent/base64-decode":paid("Base64 decode","Decode Base64 to UTF-8.","0.001",{input:"UGVubnlSYWls"}),
-      "/api/agent/hex-decode":paid("Hex decode","Decode hex to UTF-8.","0.001",{input:"50656e6e795261696c"}),
-      "/api/agent/token-count":paid("Exact LLM token count","Count o200k_base or cl100k_base BPE tokens.","0.001",{text:"PennyRail",encoding:"o200k_base"}),
-      "/api/agent/time-convert":paid("Time / timezone conversion","Convert epoch/ISO/timezone representations.","0.001",{value:1767225600,timezone:"America/Chicago"}),
-      "/api/agent/text-stats":paid("Text statistics","Character, word and line counts.","0.001",{input:"PennyRail stacks tiny paid calls."}),
-      "/api/agent/dns":paid("DNS records","Resolve A/AAAA/MX/TXT/CNAME/NS/CAA/SRV records.","0.001",{domain:"example.com",type:"A"}),
-      "/api/agent/block-number":paid("Latest EVM block","Latest Base/Ethereum/Polygon/Arbitrum/Optimism block number.","0.001",{network:"base"}),
-      "/api/agent/weather":paid("Current weather","Current global weather by city or coordinates.","0.001",{city:"Dallas"}),
-      "/api/agent/fx-convert":paid("Currency conversion / FX","Current ECB-backed currency conversion.","0.001",{amount:100,from:"USD",to:"EUR"}),
-      "/api/agent/page-metadata":paid("Page/article metadata","Title, description, canonical, favicon, OpenGraph and Twitter metadata.","0.001",{url:"https://example.com"}),
-      "/api/agent/chat-mini":paid("GPT-4o-mini chat inference","Low-cost OpenAI-compatible bounded chat completion.","0.009",{messages:[{role:"user",content:"Reply with OK."}],max_tokens:16}),
-      "/api/agent/web-search":paid("Live web search + sources","Current web search, latest news and research with source URLs/titles.","0.018",{query:"latest x402 agent commerce news",count:5,freshness:"pw"})
-    }
+    paths,
   },{headers:{"cache-control":"public, max-age=60, s-maxage=300"}});
 }
