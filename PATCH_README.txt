@@ -1,26 +1,25 @@
-PennyRail v38.4 — x402 verification probe compatibility
+PennyRail v39 — isolated Coinbase Bazaar web-search front door
 
-Purpose:
-- x402 List verify-live selects PennyRail's cheapest Base-USDC endpoint.
-- PennyRail has many endpoints tied at $0.001.
-- The verifier can pay a valid x402 challenge but provide no business input.
-- Previously that caused the post-payment handler to return HTTP 400.
-- This patch makes the complete $0.001 submission tier deterministic and probe-safe
-  when no input is supplied, while marking those responses inputDefaulted=true.
+Why:
+- x402 List verification is now complete.
+- PennyRail's previous safe-Bazaar decision disabled Bazaar on dynamic factory/revenue routes after a wildcard indexing bug.
+- Coinbase Agentic.Market/Bazaar is a larger discovery surface and requires Bazaar discovery metadata on a settled CDP-facilitated route.
 
-Changed files:
-  app/api/tools/strip-tracking/route.ts
-  app/api/tools/text-stats/route.ts
-  app/api/tools/json-canonicalize/route.ts
-  app/api/f/[operation]/route.ts
+Safety:
+- Existing factory, revenue aliases, router routes, x402scan, x402 List, MCP and payment server are untouched.
+- Bazaar metadata exists only on ONE new static endpoint:
+    POST /api/bazaar/web-search
+- It uses an explicit x402HTTPResourceServer route map, the same isolation pattern established in Safe Bazaar v23.
+- The Radar seed has a hard $0.02 Base-USDC ceiling.
 
 Suggested branch:
-  x402-probe-safe-v38-4
+  bazaar-web-search-v39
 
 Suggested commit:
-  Make x402 verification probes deliver successfully
+  Add isolated Coinbase Bazaar web search
 
 After Production is green:
-1. Do NOT immediately pay another verification fee.
-2. Open the Radar and click Check x402 List once to confirm payment-ready remains YES.
-3. Then return to ChatGPT. We will decide whether to retry Verify delivery.
+1. Open Radar.
+2. Click "Seed Coinbase Bazaar · max $0.02" once.
+3. Paste the returned JSON into ChatGPT.
+4. Do NOT seed again. The next step is to verify whether Coinbase/Agentic.Market indexed the route.

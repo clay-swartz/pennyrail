@@ -13,6 +13,7 @@ export default function Home(){
   const [the402Activation,setThe402Activation]=useState<any>(null);
   const [the402Status,setThe402Status]=useState<any>(null);
   const [x402ListStatus,setX402ListStatus]=useState<any>(null);
+  const [bazaar,setBazaar]=useState<any>(null);
   const [authResult,setAuthResult]=useState<any>(null);
   const [busy,setBusy]=useState("");
 
@@ -85,6 +86,12 @@ export default function Home(){
     finally{setBusy("")}
   }
 
+  async function seedBazaar(){
+    setBusy("bazaar"); setBazaar(null);
+    try{setBazaar(await adminCall("/api/radar/test-bazaar","POST"))}
+    finally{setBusy("")}
+  }
+
   async function refreshRevenue(){
     setBusy("revenue");
     try{setRevenue(await adminCall("/api/radar/revenue"))}
@@ -149,7 +156,7 @@ export default function Home(){
         {r?.firstSale?"✓ Outside settlement detected.":"No outside sale detected yet."}
         {revenue?.asOf?` · snapshot ${new Date(revenue.asOf).toLocaleString()}`:""}
       </div>
-      {r?.firstSale?<div style={{fontSize:10,color:"#666",marginTop:6}}>Directory verification probes can create a real settlement; repeat/unknown buyers are the organic revenue signal.</div>:null}
+      {r?.firstSale?<div style={{fontSize:10,color:"#666",marginTop:6}}>Directory verification and internal distribution seeds can create real settlements; repeat/unknown buyers are the organic revenue signal.</div>:null}
       <button disabled={!hasAdmin||!!busy} onClick={refreshRevenue} style={primary}>
         {busy==="revenue"?"Checking chain…":"Refresh revenue"}
       </button>
@@ -189,7 +196,11 @@ export default function Home(){
       </p>
       <a href="/api/router/find?q=web%20search" target="_blank" rel="noreferrer" style={link}>Test free find ↗</a>
       <a href="/openapi.json" target="_blank" rel="noreferrer" style={link}>Router OpenAPI ↗</a>
-      <div style={{fontSize:10,color:"#666",marginTop:10}}>Machine entrypoints: /api/router/find · /api/router/quote · /api/router/execute/&lt;tier&gt;</div>
+      <button disabled={!hasAdmin||!!busy||Boolean(bazaar?.ok)} onClick={seedBazaar} style={button}>
+        {busy==="bazaar"?"Seeding Coinbase Bazaar…":bazaar?.ok?"Bazaar seed complete ✓":"Seed Coinbase Bazaar · max $0.02"}
+      </button>
+      <div style={{fontSize:10,color:"#666",marginTop:10}}>Machine entrypoints: /api/router/find · /api/router/quote · /api/router/execute/&lt;tier&gt; · /api/bazaar/web-search</div>
+      {bazaar?<JsonBox value={bazaar}/>:null}
     </section>
 
     <section style={{...box,marginBottom:16}}>
@@ -220,7 +231,7 @@ export default function Home(){
     <section style={{...box,marginBottom:16}}>
       <div style={label}>DISTRIBUTION · X402 LIST</div>
       <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
-        PennyRail is approved and live on x402 List. Payment-ready is free; Verified requires x402 List to pay a real PennyRail endpoint and confirm delivery. Verification costs at most $0.30 total from the Radar buyer wallet and is a distribution/trust test, not organic customer revenue.
+        PennyRail is approved, payment-ready and delivery-verified on x402 List. Verification is a distribution/trust signal; it is not organic customer revenue.
       </p>
       <button disabled={!hasAdmin||!!busy} onClick={loadX402ListStatus} style={primary}>
         {busy==="x402-list-status"?"Checking x402 List…":"Check x402 List"}
@@ -228,7 +239,7 @@ export default function Home(){
       <button disabled={!hasAdmin||!!busy||Boolean(x402ListStatus?.listing?.verified)} onClick={verifyX402List} style={button}>
         {busy==="x402-list-verify"?"Paying + verifying…":x402ListStatus?.listing?.verified?"Verified ✓":"Verify delivery · max $0.30"}
       </button>
-      <a href="https://x402-list.com/services" target="_blank" rel="noreferrer" style={link}>Open x402 List ↗</a>
+      <a href="https://x402-list.com/services/pennyrail" target="_blank" rel="noreferrer" style={link}>Open PennyRail listing ↗</a>
       {x402ListStatus?.listing?<div style={{...metrics,marginTop:14}}>
         <Metric title="Status" value={String(x402ListStatus.listing.status||"—")}/>
         <Metric title="Payment-ready" value={x402ListStatus.listing.payment_ready?"YES":"NO"}/>
@@ -262,7 +273,7 @@ export default function Home(){
     {catalog?<JsonBox value={{capabilityCount:catalog.capabilityCount,priceUsdPerRun:catalog.priceUsdPerRun,firstFive:catalog.capabilities?.slice(0,5)}}/>:null}
 
     <section style={{...box,marginTop:16,color:"#777",fontSize:11,lineHeight:1.7}}>
-      Transaction Router live: free intent discovery + free quote + one paid execution tier over exact paid-demand mappings, market-aligned micro-prices and the OpenAI broker. Distribution: x402 discovery/OpenAPI + Agent402 + true402 + x402scan + x402 List live + official MCP Registry; the402 remains additive when its provider registration reopens.
+      Transaction Router live: free intent discovery + free quote + one paid execution tier over exact paid-demand mappings, market-aligned micro-prices and the OpenAI broker. Distribution: x402scan + Agent402 + true402 + x402 List Verified + official MCP Registry + isolated Coinbase Bazaar indexing test; the402 remains additive when its provider registration reopens.
     </section>
   </main>
 }
