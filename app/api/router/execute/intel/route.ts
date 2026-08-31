@@ -4,7 +4,7 @@ import { penny, x402Server } from "@/lib/x402-server";
 import { executeRouterTier } from "@/lib/transaction-router";
 
 export const POST = withX402(
-  async (req: NextRequest) => {
+  async (req: NextRequest): Promise<NextResponse<any>> => {
     try {
       const body = await req.json();
       return NextResponse.json(await executeRouterTier("intel", body));

@@ -1,11 +1,9 @@
-PennyRail v37 Transaction Router — PATCH ONLY
+PennyRail v37 TypeScript hotfix
 
-Base: current Production/main v36
+Replace only these 9 files on the existing transaction-router-v37 branch:
+  app/api/router/execute/{analyst,intel,micro,mini,nano,network,premium,skill,standard}/route.ts
 
-Upload everything in this patch to the SAME PATHS in your transaction-router-v37 branch.
-Existing files should be replaced; new router files should be added.
+Fix: explicitly types each x402 handler as Promise<NextResponse<any>> so @x402/next does not infer the success payload as the only allowed response body and reject the 400 error response at build time.
 
 Commit suggestion:
-Launch free intent router and paid execution
-
-This patch intentionally excludes unchanged project files and historical READMEs.
+  Fix router x402 response typing
