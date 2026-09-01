@@ -29,13 +29,37 @@ async function registerAgent402() {
       cache: "no-store",
       signal: AbortSignal.timeout(15_000),
     });
-    return {
-      ok: response.ok,
-      status: response.status,
-      response: await parseJson(response),
-    };
+    return { ok: response.ok, status: response.status, response: await parseJson(response) };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function registerX402Dash() {
+  const url = `${origin()}/api/agent/url-contents`;
+  try {
+    const response = await fetch("https://api.x402dash.com/v1/register", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({
+        url,
+        name: "PennyRail URL Contents",
+        description: "Retrieve clean text and optional highlights from known public URLs for agent research, RAG and page-reading workflows.",
+        category: "Search/Research",
+        tags: ["url contents", "web extraction", "scrape", "research", "rag", "page reader"],
+      }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body = await parseJson(response);
+    return {
+      ok: response.ok || response.status === 409,
+      status: response.status,
+      url,
+      response: body,
+    };
+  } catch (error) {
+    return { ok: false, url, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -89,8 +113,6 @@ async function buyAgent402Intel() {
   };
 
   try {
-    // Each purchase is individually capped at $0.006 in Base USDC.
-    // If Agent402 raises either price above the cap, PennyRail refuses to pay.
     const paidFetch = await paidFetchBaseUsdcCapped(0.006);
     const [demandResponse, bestsellerResponse] = await Promise.all([
       paidFetch("https://agent402.tools/api/demand-radar?sort=count&limit=50&minCount=1", {
@@ -108,9 +130,7 @@ async function buyAgent402Intel() {
     result.demand = await parseJson(demandResponse);
     result.bestsellers = await parseJson(bestsellerResponse);
     result.ok = demandResponse.ok && bestsellerResponse.ok;
-    if (!result.ok) {
-      result.error = `Agent402 intel HTTP ${demandResponse.status}/${bestsellerResponse.status}`;
-    }
+    if (!result.ok) result.error = `Agent402 intel HTTP ${demandResponse.status}/${bestsellerResponse.status}`;
   } catch (error) {
     result.error = error instanceof Error ? error.message : String(error);
   }
@@ -127,11 +147,7 @@ async function runThe402() {
   const webhookSecret = process.env.THE402_WEBHOOK_SECRET?.trim() || "";
 
   if (!participantId || !apiKey || !webhookSecret) {
-    return {
-      configured: false,
-      acted: false,
-      reason: "the402 credentials are not configured",
-    };
+    return { configured: false, acted: false, reason: "the402 credentials are not configured" };
   }
 
   try {
@@ -140,11 +156,7 @@ async function runThe402() {
       apiKey,
       webhookUrl: `${origin()}/api/the402/webhook`,
     });
-
-    // This is an ACTION, not just a scan:
-    // live postings are evaluated and PennyRail places bounded bids automatically.
     const sweep = await sweepThe402RequestsWithGapFallback(apiKey, 50);
-
     let earnings: any = null;
     try { earnings = await the402Earnings(apiKey); } catch {}
 
@@ -162,19 +174,12 @@ async function runThe402() {
       bidResults: sweep.results,
     };
   } catch (error) {
-    return {
-      configured: true,
-      acted: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
+    return { configured: true, acted: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
 export async function runMoneyHunter() {
   const startedAt = Date.now();
-
-  // Refresh the internal revenue engine first so any live demand-derived aliases
-  // exist before PennyRail republishes itself to external discovery.
   const audit = await getCachedRevenueAudit();
 
   const [agent402Intel, agenteryPain, leadYield, the402] = await Promise.all([
@@ -184,18 +189,16 @@ export async function runMoneyHunter() {
     runThe402(),
   ]);
 
-  // Re-register AFTER refreshing all live catalog surfaces. Agent402's crawler
-  // can then see the newest manifest/OpenAPI state and route buyers to PennyRail.
-  const agent402Registration = await registerAgent402();
+  const [agent402Registration, x402DashRegistration] = await Promise.all([
+    registerAgent402(),
+    registerX402Dash(),
+  ]);
 
   const automaticActions = [
     {
       action: "REFRESH_DEMAND_CATALOG",
       executed: true,
-      evidence: {
-        autoLive: audit.autoLive?.length || 0,
-        unresolved: audit.unresolved?.length || 0,
-      },
+      evidence: { autoLive: audit.autoLive?.length || 0, unresolved: audit.unresolved?.length || 0 },
     },
     {
       action: "BUY_AGENT402_DEMAND_AND_BESTSELLER_INTEL",
@@ -210,6 +213,11 @@ export async function runMoneyHunter() {
       result: agent402Registration,
     },
     {
+      action: "REGISTER_PROVEN_DEMAND_ROUTE_X402DASH",
+      executed: Boolean(x402DashRegistration.ok),
+      result: x402DashRegistration,
+    },
+    {
       action: "ACTIVATE_THE402_AND_AUTO_BID_LIVE_REQUESTS",
       executed: Boolean(the402.acted),
       bidsPlaced: the402.bidsPlaced || 0,
@@ -220,21 +228,15 @@ export async function runMoneyHunter() {
 
   return {
     ok: true,
-    mode: "AUTONOMOUS_MONEY_HUNTER_V54",
+    mode: "AUTONOMOUS_MONEY_HUNTER_V55",
     targetNetUsdPerDay: 1000,
     generatedAt: new Date().toISOString(),
     elapsedMs: Date.now() - startedAt,
-
-    // Money first: keep actual earnings/payment state near the top.
     money: {
       the402Earnings: the402.earnings ?? null,
       targetNetUsdPerDay: 1000,
     },
-
     automaticActions,
-
-    // Observations feed the next autonomous action cycle. They are not treated
-    // as success unless money actually lands.
     signals: {
       agent402: {
         sellableNow: agent402Intel.sellableNow,
@@ -251,7 +253,6 @@ export async function runMoneyHunter() {
         actionQueue: leadYield?.actionQueue ?? [],
       },
     },
-
     portfolio: audit.portfolio,
     opportunityCounts: {
       autoLive: audit.autoLive?.length || 0,
@@ -261,10 +262,10 @@ export async function runMoneyHunter() {
       agent402SellableSignals: agent402Intel.sellableNow?.length || 0,
       the402BidsPlaced: the402.bidsPlaced || 0,
     },
-
     raw: {
       the402,
       agent402Registration,
+      x402DashRegistration,
       agent402Intel: {
         ok: agent402Intel.ok,
         maxSpendUsd: agent402Intel.maxSpendUsd,

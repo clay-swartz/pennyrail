@@ -16,9 +16,6 @@ export async function GET(req: NextRequest) {
     ? manifest.routing.featured
     : [];
 
-  // Agent402 supports a price-bearing `tools` array. PennyRail previously
-  // advertised most resources only as bare URL strings, which can leave the
-  // external router unable to rank us by price until it performs a live probe.
   const tools = featured
     .filter(item => item?.resource && Number(item?.priceUsd) > 0)
     .map((item, index) => {
@@ -39,25 +36,47 @@ export async function GET(req: NextRequest) {
     });
 
   const origin = req.nextUrl.origin.replace(/\/$/, "");
-  const agentExecutionPath = "/v1/agents/execute";
+  const network = manifest?.payment?.x402?.primaryNetwork || "eip155:8453";
 
-  if (!tools.some(tool => tool.route === agentExecutionPath)) {
-    tools.push({
-      name: "agent_execution",
-      route: agentExecutionPath,
-      endpoint: `${origin}${agentExecutionPath}`,
-      method: "POST",
-      price_usd: 0.75,
-      price: "$0.75",
-      description: "Bounded AI agent execution for research, analysis, code/data work and machine-ready answers.",
-      tags: ["agent", "execution", "research", "analysis", "code", "data", "automation"],
-      network: manifest?.payment?.x402?.primaryNetwork || "eip155:8453",
-    });
-  }
+  const ensure = (tool: any) => {
+    if (!tools.some(existing => existing.route === tool.route)) tools.push(tool);
+  };
+
+  ensure({
+    name: "url_contents",
+    route: "/api/agent/url-contents",
+    endpoint: `${origin}/api/agent/url-contents`,
+    method: "POST",
+    price_usd: 0.001,
+    price: "$0.001",
+    description: "Retrieve clean text and optional highlights from known public URLs for agent research, RAG and page-reading workflows.",
+    tags: [
+      "retrieve content from URLs",
+      "URL contents",
+      "extract page text",
+      "web extraction",
+      "scrape URL",
+      "page reader",
+      "RAG",
+      "research",
+    ],
+    network,
+  });
+
+  ensure({
+    name: "agent_execution",
+    route: "/v1/agents/execute",
+    endpoint: `${origin}/v1/agents/execute`,
+    method: "POST",
+    price_usd: 0.75,
+    price: "$0.75",
+    description: "Bounded AI agent execution for research, analysis, code/data work and machine-ready answers.",
+    tags: ["agent", "execution", "research", "analysis", "code", "data", "automation"],
+    network,
+  });
 
   return NextResponse.json({
     ...manifest,
-    // x402scan/Agent402 compatibility.
     version: 1,
     tools,
     capabilities: {
@@ -66,8 +85,6 @@ export async function GET(req: NextRequest) {
       priceBearingTools: tools.length,
     },
   }, {
-    headers: {
-      "cache-control": "public, max-age=60, s-maxage=300",
-    },
+    headers: { "cache-control": "public, max-age=60, s-maxage=300" },
   });
 }
