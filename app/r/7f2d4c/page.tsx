@@ -10,6 +10,7 @@ export default function Home(){
   const [revenue,setRevenue]=useState<any>(null);
   const [yieldAudit,setYieldAudit]=useState<any>(null);
   const [x402Flows,setX402Flows]=useState<any>(null);
+  const [agentExecuteSeed,setAgentExecuteSeed]=useState<any>(null);
   const [the402Registration,setThe402Registration]=useState<any>(null);
   const [the402Activation,setThe402Activation]=useState<any>(null);
   const [the402Status,setThe402Status]=useState<any>(null);
@@ -78,6 +79,12 @@ export default function Home(){
   async function loadX402Flows(){
     setBusy("x402-flows"); setX402Flows(null);
     try{setX402Flows(await adminCall("/api/money/x402-flows"))}
+    finally{setBusy("")}
+  }
+
+  async function seedAgentExecute(){
+    setBusy("agent-execute-seed"); setAgentExecuteSeed(null);
+    try{setAgentExecuteSeed(await adminCall("/api/radar/seed-agent-execute","POST"))}
     finally{setBusy("")}
   }
 
@@ -186,6 +193,18 @@ export default function Home(){
         <Metric title="Clone ready" value={x402Flows.gate.cloneReady?"YES":"NO"}/>
       </div>:null}
       {x402Flows?<JsonBox value={x402Flows}/>:null}
+    </section>
+
+    <section style={{...box,marginBottom:16}}>
+      <div style={label}>PAID-FLOW CLONE · AGENT EXECUTION</div>
+      <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
+        PennyRail now exposes /v1/agents/execute at $0.75—an exact demand surface observed producing $3,416.50 gross from 3,850 payments and 697 buyers in 24 hours. One bounded internal settlement publishes its Bazaar discovery metadata; it never counts as organic revenue.
+      </p>
+      <button disabled={!hasAdmin||!!busy||Boolean(agentExecuteSeed?.ok)} onClick={seedAgentExecute} style={primary}>
+        {busy==="agent-execute-seed"?"Paying + publishing agent route…":agentExecuteSeed?.ok?"Agent route seeded ✓":"Publish agent execution · $0.75 internal seed"}
+      </button>
+      <a href="/v1/agents/execute" target="_blank" rel="noreferrer" style={link}>Open payment challenge ↗</a>
+      {agentExecuteSeed?<JsonBox value={agentExecuteSeed}/>:null}
     </section>
 
     <section style={{...box,marginBottom:16}}>
