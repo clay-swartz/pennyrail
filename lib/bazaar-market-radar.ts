@@ -1,7 +1,7 @@
-import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { GAP_ARBITRAGE_PRODUCTS, type GapArbitrageProduct } from "@/lib/gap-arbitrage-catalog";
 
-const BAZAAR_MCP = "https://api.cdp.coinbase.com/platform/v2/x402/discovery/mcp";
+const BAZAAR_SEARCH = "https://api.cdp.coinbase.com/platform/v2/x402/discovery/search";
+const PENNYRAIL_HOST = "pennyrail.vercel.app";
 
 type AnyObj = Record<string, any>;
 
@@ -49,9 +49,8 @@ function resourcePriceUsd(row: AnyObj): number | null {
       const numeric = finitePrice(raw);
       if (numeric == null) return null;
 
-      // Standard Base USDC requirements are returned in 6-decimal atomic units.
-      const rawText = String(raw ?? "");
-      const looksAtomic = /^\d+$/.test(rawText) && numeric >= 1000;
+      // x402 v2 Base USDC requirements use 6-decimal atomic amounts.
+      const looksAtomic = /^\d+$/.test(String(raw ?? "")) && numeric >= 1000;
       return looksAtomic ? numeric / 1_000_000 : numeric;
     })
     .filter((value: number | null): value is number => value != null);
@@ -62,6 +61,7 @@ function resourcePriceUsd(row: AnyObj): number | null {
 function asBazaarResource(value: unknown): BazaarResource | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as AnyObj;
+
   const resource =
     typeof row.resource === "string" ? row.resource :
     typeof row.url === "string" ? row.url :
@@ -70,60 +70,30 @@ function asBazaarResource(value: unknown): BazaarResource | null {
 
   if (!resource) return null;
 
+  const extensions =
+    row.extensions && typeof row.extensions === "object"
+      ? row.extensions as AnyObj
+      : {};
+  const bazaar =
+    extensions.bazaar && typeof extensions.bazaar === "object"
+      ? extensions.bazaar as AnyObj
+      : {};
+
   return {
     resource,
-    description: typeof row.description === "string" ? row.description : null,
+    description:
+      typeof row.description === "string" ? row.description :
+      typeof bazaar.description === "string" ? bazaar.description :
+      null,
     serviceName:
       typeof row.serviceName === "string" ? row.serviceName :
       typeof row.name === "string" ? row.name :
+      typeof bazaar.serviceName === "string" ? bazaar.serviceName :
       null,
     priceUsd: resourcePriceUsd(row),
     quality: row.quality && typeof row.quality === "object" ? row.quality : null,
     raw: row,
   };
-}
-
-function parseJsonMaybe(text: string): unknown {
-  try { return JSON.parse(text); } catch { return null; }
-}
-
-function collectResources(value: unknown, out: BazaarResource[], depth = 0): void {
-  if (depth > 10 || value == null) return;
-
-  if (typeof value === "string") {
-    const parsed = parseJsonMaybe(value);
-    if (parsed != null) collectResources(parsed, out, depth + 1);
-    return;
-  }
-
-  if (Array.isArray(value)) {
-    for (const item of value) collectResources(item, out, depth + 1);
-    return;
-  }
-
-  if (typeof value !== "object") return;
-  const row = value as AnyObj;
-
-  const direct = asBazaarResource(row);
-  if (direct) {
-    out.push(direct);
-    return;
-  }
-
-  for (const key of [
-    "resources",
-    "results",
-    "items",
-    "matches",
-    "structuredContent",
-    "content",
-    "data",
-    "result",
-  ]) {
-    if (Object.prototype.hasOwnProperty.call(row, key)) {
-      collectResources(row[key], out, depth + 1);
-    }
-  }
 }
 
 function dedupeResources(rows: BazaarResource[]): BazaarResource[] {
@@ -138,91 +108,158 @@ function dedupeResources(rows: BazaarResource[]): BazaarResource[] {
   return out;
 }
 
-function findString(value: unknown, key: string, depth = 0): string | null {
-  if (depth > 8 || value == null) return null;
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = findString(item, key, depth + 1);
-      if (found) return found;
-    }
-    return null;
-  }
-  if (typeof value !== "object") return null;
-  const row = value as AnyObj;
-  if (typeof row[key] === "string") return row[key];
-  for (const child of Object.values(row)) {
-    const found = findString(child, key, depth + 1);
-    if (found) return found;
-  }
-  return null;
+function extractResources(payload: unknown): BazaarResource[] {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return [];
+  const row = payload as AnyObj;
+  const raw =
+    Array.isArray(row.resources) ? row.resources :
+    Array.isArray(row.items) ? row.items :
+    Array.isArray(row.results) ? row.results :
+    [];
+  return dedupeResources(
+    raw
+      .map((item: unknown): BazaarResource | null => asBazaarResource(item))
+      .filter((item: BazaarResource | null): item is BazaarResource => item != null)
+  );
 }
 
-async function bazaarSearch(client: Client, query: string): Promise<BazaarSearchAudit> {
+function shortIntent(value: string, max = 240): string {
+  const clean = value
+    .replace(/[—–]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Revenue Engine needs often contain a compact product name before a dash.
+  const lead = clean.split(/\s+-\s+/)[0]?.trim();
+  if (lead && lead.length >= 3 && lead.length <= 120) return lead;
+
+  if (clean.length <= max) return clean;
+  const clipped = clean.slice(0, max);
+  const lastSpace = clipped.lastIndexOf(" ");
+  return (lastSpace > 80 ? clipped.slice(0, lastSpace) : clipped).trim();
+}
+
+async function fetchBazaar(params: URLSearchParams): Promise<{
+  ok: boolean;
+  status: number;
+  payload: AnyObj | null;
+  resources: BazaarResource[];
+  error?: string;
+}> {
   try {
-    // Important: this is a real MCP client call after connect()/initialize.
-    // v44 incorrectly sent tools/call as a stateless raw HTTP request.
-    const payload = await client.callTool({
-      name: "search_resources",
-      arguments: { query },
+    const url = new URL(BAZAAR_SEARCH);
+    for (const [key, value] of params.entries()) url.searchParams.set(key, value);
+
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(12_000),
     });
 
-    const resources: BazaarResource[] = [];
-    collectResources(payload, resources);
-    const unique = dedupeResources(resources);
-
-    const pennyrailIndex = unique.findIndex((row: BazaarResource): boolean =>
-      String(row.resource || "").toLowerCase().includes("pennyrail.vercel.app/")
-    );
-    const external = unique.filter((row: BazaarResource): boolean =>
-      !String(row.resource || "").toLowerCase().includes("pennyrail.vercel.app/")
-    );
-    const externalPrices = external
-      .map((row: BazaarResource): number | null => row.priceUsd)
-      .filter((value: number | null): value is number => value != null);
-
-    const isError = Boolean((payload as AnyObj)?.isError);
-    const errorText = isError
-      ? String(
-          (payload as AnyObj)?.content?.find?.((item: AnyObj) => item?.type === "text")?.text ||
-          "Coinbase Bazaar MCP search_resources returned an error"
-        )
-      : undefined;
+    const text = await response.text();
+    let payload: AnyObj | null = null;
+    try {
+      const parsed = text ? JSON.parse(text) : null;
+      payload = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed as AnyObj
+        : null;
+    } catch {}
 
     return {
-      query,
-      ok: !isError,
-      status: isError ? 502 : 200,
-      searchMethod: findString(payload, "searchMethod"),
-      resourceCount: unique.length,
-      pennyrailFound: pennyrailIndex >= 0,
-      pennyrailRank: pennyrailIndex >= 0 ? pennyrailIndex + 1 : null,
-      pennyrail: pennyrailIndex >= 0 ? unique[pennyrailIndex] : null,
-      cheapestExternalUsd: externalPrices.length ? Math.min(...externalPrices) : null,
-      externalSupplyCount: external.length,
-      top: unique.slice(0, 5),
-      ...(errorText ? { error: errorText } : {}),
+      ok: response.ok && Boolean(payload),
+      status: response.status,
+      payload,
+      resources: extractResources(payload),
+      ...(!response.ok
+        ? { error: `Coinbase Bazaar discovery search HTTP ${response.status}: ${text.slice(0, 300)}` }
+        : !payload
+          ? { error: "Coinbase Bazaar discovery search returned non-JSON or empty JSON." }
+          : {}),
     };
   } catch (error) {
     return {
-      query,
       ok: false,
       status: 0,
-      searchMethod: null,
-      resourceCount: 0,
-      pennyrailFound: false,
-      pennyrailRank: null,
-      pennyrail: null,
-      cheapestExternalUsd: null,
-      externalSupplyCount: 0,
-      top: [],
+      payload: null,
+      resources: [],
       error: error instanceof Error ? error.message : String(error),
     };
   }
 }
 
+async function bazaarSearch(query: string): Promise<BazaarSearchAudit> {
+  const compactQuery = shortIntent(query);
+  const response = await fetchBazaar(new URLSearchParams({
+    query: compactQuery,
+    network: "eip155:8453",
+    type: "http",
+    limit: "20",
+  }));
+
+  const unique = response.resources;
+  const pennyrailIndex = unique.findIndex((row: BazaarResource): boolean =>
+    String(row.resource || "").toLowerCase().includes(`${PENNYRAIL_HOST}/`)
+  );
+  const external = unique.filter((row: BazaarResource): boolean =>
+    !String(row.resource || "").toLowerCase().includes(`${PENNYRAIL_HOST}/`)
+  );
+  const externalPrices = external
+    .map((row: BazaarResource): number | null => row.priceUsd)
+    .filter((value: number | null): value is number => value != null);
+
+  return {
+    query: compactQuery,
+    ok: response.ok,
+    status: response.status,
+    searchMethod:
+      typeof response.payload?.searchMethod === "string"
+        ? response.payload.searchMethod
+        : null,
+    resourceCount: unique.length,
+    pennyrailFound: pennyrailIndex >= 0,
+    pennyrailRank: pennyrailIndex >= 0 ? pennyrailIndex + 1 : null,
+    pennyrail: pennyrailIndex >= 0 ? unique[pennyrailIndex] : null,
+    cheapestExternalUsd: externalPrices.length ? Math.min(...externalPrices) : null,
+    externalSupplyCount: external.length,
+    top: unique.slice(0, 5),
+    ...(response.error ? { error: response.error } : {}),
+  };
+}
+
+async function exactPennyRailVisibility() {
+  // Coinbase currently supports URL-substring filtering on the discovery search
+  // endpoint. This separates exact indexing from semantic ranking.
+  const byUrl = await fetchBazaar(new URLSearchParams({
+    network: "eip155:8453",
+    type: "http",
+    urlSubstring: PENNYRAIL_HOST,
+    limit: "100",
+  }));
+
+  const pennyrail = byUrl.resources.filter((row: BazaarResource): boolean =>
+    String(row.resource || "").toLowerCase().includes(PENNYRAIL_HOST)
+  );
+
+  return {
+    ok: byUrl.ok,
+    status: byUrl.status,
+    indexedResourceCount: pennyrail.length,
+    resources: pennyrail,
+    error: byUrl.error ?? null,
+  };
+}
+
+async function catalogHealth() {
+  // A generic sentinel prevents "none of our exact product queries matched" from
+  // being mistaken for a broken Coinbase catalog.
+  const sentinel = await bazaarSearch("weather API");
+  return {
+    healthy: sentinel.ok && sentinel.resourceCount > 0,
+    sentinel,
+  };
+}
+
 function unresolvedIntent(row: AnyObj): string {
-  // v44 bug: `need` is the actual Revenue Engine field and was omitted,
-  // which turned every unresolved market query into an empty string.
   const candidates: unknown[] = [
     row?.need,
     row?.demand?.text,
@@ -267,30 +304,22 @@ export async function auditBazaarMarket(audit: AnyObj) {
         .slice(0, 8)
     : [];
 
-  const client = new Client(
-    { name: "pennyrail-radar", version: "44.1.0" },
-    { versionNegotiation: { mode: "legacy" } }
-  );
-
-  try {
-    // Coinbase documents Bazaar MCP as a Streamable HTTP MCP server.
-    // connect() performs the initialize handshake and maintains session state.
-    await client.connect(new StreamableHTTPClientTransport(new URL(BAZAAR_MCP)));
-
-    const productSearches = await Promise.all(
+  const [health, exactVisibility, productSearches, unresolvedSearches] = await Promise.all([
+    catalogHealth(),
+    exactPennyRailVisibility(),
+    Promise.all(
       productTargets.map(async ({ product, query }) => ({
         productId: product.id,
         path: product.path,
         title: product.title,
         priceUsd: product.priceUsd,
-        search: await bazaarSearch(client, query),
+        search: await bazaarSearch(query),
       }))
-    );
-
-    const unresolvedSearches = await Promise.all(
+    ),
+    Promise.all(
       unresolvedRows.map(async (row: AnyObj) => {
         const intent = unresolvedIntent(row);
-        const search = intent ? await bazaarSearch(client, intent) : null;
+        const search = intent ? await bazaarSearch(intent) : null;
         const cheapest = search?.cheapestExternalUsd ?? null;
 
         let marketGap: "MISSING" | "UNDERCUTTABLE" | "SUPPLIED" | "UNKNOWN" = "UNKNOWN";
@@ -302,6 +331,7 @@ export async function auditBazaarMarket(audit: AnyObj) {
 
         return {
           intent,
+          querySent: intent ? shortIntent(intent) : "",
           radar: row,
           opportunityScore: Number(opportunityScore(row).toFixed(2)),
           marketGap,
@@ -312,75 +342,55 @@ export async function auditBazaarMarket(audit: AnyObj) {
           bazaarSearchError: search?.error ?? null,
         };
       })
-    );
+    ),
+  ]);
 
-    const indexed = productSearches.filter(row => row.search.pennyrailFound);
-    const missing = productSearches.filter(row => !row.search.pennyrailFound);
-    const undercuttable = unresolvedSearches.filter(row => row.marketGap === "UNDERCUTTABLE");
-    const unsupplied = unresolvedSearches.filter(row => row.marketGap === "MISSING");
-    const workingSearches = productSearches.filter(row => row.search.ok && row.search.resourceCount > 0);
+  const semanticIndexed = productSearches.filter(row => row.search.pennyrailFound);
+  const semanticMissing = productSearches.filter(row => !row.search.pennyrailFound);
+  const undercuttable = unresolvedSearches.filter(row => row.marketGap === "UNDERCUTTABLE");
+  const unsupplied = unresolvedSearches.filter(row => row.marketGap === "MISSING");
 
-    return {
-      source: "Coinbase Bazaar MCP search_resources via initialized MCP client",
-      mcpEndpoint: BAZAAR_MCP,
-      generatedAt: new Date().toISOString(),
-      buyerSearchHealthy: workingSearches.length > 0,
-      productVisibility: {
-        checked: productSearches.length,
-        indexed: indexed.length,
-        missing: missing.length,
-        allIndexed: productSearches.length > 0 && missing.length === 0,
-        products: productSearches,
-      },
-      gapArbitrage: {
-        unresolvedChecked: unresolvedSearches.length,
-        missingSupply: unsupplied.length,
-        undercuttable: undercuttable.length,
-        suppliedAtFloorOrLower: unresolvedSearches.filter(row => row.marketGap === "SUPPLIED").length,
-        opportunities: unresolvedSearches.sort((a, b) => {
-          const priority = (value: string) =>
-            value === "MISSING" ? 3 :
-            value === "UNDERCUTTABLE" ? 2 :
-            value === "SUPPLIED" ? 1 : 0;
-          return priority(b.marketGap) - priority(a.marketGap) || b.opportunityScore - a.opportunityScore;
-        }),
-      },
-      nextAction:
-        workingSearches.length === 0
-          ? "FIX_BAZAAR_BUYER_SEARCH"
-          : missing.length
-            ? "FIX_BAZAAR_INDEXING"
-            : unsupplied.length || undercuttable.length
-              ? "BUILD_HIGHEST_VALUE_GAP"
-              : "MULTIPLY_CURRENT_WINNERS",
-      note:
-        "MISSING means no external Bazaar supply surfaced for a real non-empty Radar intent. UNDERCUTTABLE means external supply surfaced above the $0.001 floor. Internal seed settlements are never organic revenue.",
-    };
-  } catch (error) {
-    return {
-      source: "Coinbase Bazaar MCP search_resources via initialized MCP client",
-      mcpEndpoint: BAZAAR_MCP,
-      generatedAt: new Date().toISOString(),
-      buyerSearchHealthy: false,
-      productVisibility: {
-        checked: productTargets.length,
-        indexed: 0,
-        missing: productTargets.length,
-        allIndexed: false,
-        products: [],
-      },
-      gapArbitrage: {
-        unresolvedChecked: 0,
-        missingSupply: 0,
-        undercuttable: 0,
-        suppliedAtFloorOrLower: 0,
-        opportunities: [],
-      },
-      nextAction: "FIX_BAZAAR_BUYER_SEARCH",
-      error: error instanceof Error ? error.message : String(error),
-      note: "The audit could not establish a valid initialized Coinbase Bazaar MCP buyer session.",
-    };
-  } finally {
-    try { await client.close(); } catch {}
-  }
+  const buyerSearchHealthy = health.healthy;
+  const pennyrailIndexed = exactVisibility.ok && exactVisibility.indexedResourceCount > 0;
+
+  return {
+    source: "Coinbase Bazaar REST discovery/search",
+    searchEndpoint: BAZAAR_SEARCH,
+    generatedAt: new Date().toISOString(),
+    buyerSearchHealthy,
+    catalogHealth: health,
+    exactPennyRailVisibility: exactVisibility,
+    productVisibility: {
+      checked: productSearches.length,
+      semanticallyFound: semanticIndexed.length,
+      semanticallyMissing: semanticMissing.length,
+      exactIndexedResourceCount: exactVisibility.indexedResourceCount,
+      pennyrailIndexed,
+      products: productSearches,
+    },
+    gapArbitrage: {
+      unresolvedChecked: unresolvedSearches.length,
+      missingSupply: unsupplied.length,
+      undercuttable: undercuttable.length,
+      suppliedAtFloorOrLower: unresolvedSearches.filter(row => row.marketGap === "SUPPLIED").length,
+      unknown: unresolvedSearches.filter(row => row.marketGap === "UNKNOWN").length,
+      opportunities: unresolvedSearches.sort((a, b) => {
+        const priority = (value: string) =>
+          value === "MISSING" ? 3 :
+          value === "UNDERCUTTABLE" ? 2 :
+          value === "SUPPLIED" ? 1 : 0;
+        return priority(b.marketGap) - priority(a.marketGap) || b.opportunityScore - a.opportunityScore;
+      }),
+    },
+    nextAction:
+      !buyerSearchHealthy
+        ? "FIX_BAZAAR_DISCOVERY_API"
+        : !pennyrailIndexed
+          ? "FIX_BAZAAR_INDEXING"
+          : unsupplied.length || undercuttable.length
+            ? "BUILD_HIGHEST_VALUE_GAP"
+            : "MULTIPLY_CURRENT_WINNERS",
+    note:
+      "Exact PennyRail URL visibility determines indexing. Semantic rank is measured separately. Long Revenue Engine descriptions are shortened before Bazaar search. Internal seed settlements remain excluded from organic revenue.",
+  };
 }

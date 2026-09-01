@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@coinbase/cdp-sdk": "1.55.0",
-    "@modelcontextprotocol/client": "2.0.0",
     "@modelcontextprotocol/server": "2.0.0",
     "@x402/core": "2.23.0",
     "@x402/evm": "2.23.0",
