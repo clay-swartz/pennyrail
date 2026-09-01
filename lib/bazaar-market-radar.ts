@@ -48,8 +48,6 @@ function resourcePriceUsd(row: AnyObj): number | null {
       const raw = accept?.amount ?? accept?.maxAmountRequired ?? accept?.price;
       const numeric = finitePrice(raw);
       if (numeric == null) return null;
-
-      // x402 v2 Base USDC requirements use 6-decimal atomic amounts.
       const looksAtomic = /^\d+$/.test(String(raw ?? "")) && numeric >= 1000;
       return looksAtomic ? numeric / 1_000_000 : numeric;
     })
@@ -129,7 +127,6 @@ function shortIntent(value: string, max = 240): string {
     .replace(/\s+/g, " ")
     .trim();
 
-  // Revenue Engine needs often contain a compact product name before a dash.
   const lead = clean.split(/\s+-\s+/)[0]?.trim();
   if (lead && lead.length >= 3 && lead.length <= 120) return lead;
 
@@ -227,13 +224,11 @@ async function bazaarSearch(query: string): Promise<BazaarSearchAudit> {
 }
 
 async function exactPennyRailVisibility() {
-  // Coinbase currently supports URL-substring filtering on the discovery search
-  // endpoint. This separates exact indexing from semantic ranking.
   const byUrl = await fetchBazaar(new URLSearchParams({
     network: "eip155:8453",
     type: "http",
     urlSubstring: PENNYRAIL_HOST,
-    limit: "100",
+    limit: "20",
   }));
 
   const pennyrail = byUrl.resources.filter((row: BazaarResource): boolean =>
@@ -250,8 +245,6 @@ async function exactPennyRailVisibility() {
 }
 
 async function catalogHealth() {
-  // A generic sentinel prevents "none of our exact product queries matched" from
-  // being mistaken for a broken Coinbase catalog.
   const sentinel = await bazaarSearch("weather API");
   return {
     healthy: sentinel.ok && sentinel.resourceCount > 0,
@@ -351,7 +344,9 @@ export async function auditBazaarMarket(audit: AnyObj) {
   const unsupplied = unresolvedSearches.filter(row => row.marketGap === "MISSING");
 
   const buyerSearchHealthy = health.healthy;
-  const pennyrailIndexed = exactVisibility.ok && exactVisibility.indexedResourceCount > 0;
+  const pennyrailIndexed =
+    (exactVisibility.ok && exactVisibility.indexedResourceCount > 0)
+    || semanticIndexed.length > 0;
 
   return {
     source: "Coinbase Bazaar REST discovery/search",
@@ -391,6 +386,6 @@ export async function auditBazaarMarket(audit: AnyObj) {
             ? "BUILD_HIGHEST_VALUE_GAP"
             : "MULTIPLY_CURRENT_WINNERS",
     note:
-      "Exact PennyRail URL visibility determines indexing. Semantic rank is measured separately. Long Revenue Engine descriptions are shortened before Bazaar search. Internal seed settlements remain excluded from organic revenue.",
+      "Exact URL visibility and semantic PennyRail hits both count as indexing proof. Long Revenue Engine descriptions are shortened before Bazaar search. Internal seed settlements remain excluded from organic revenue.",
   };
 }

@@ -91,6 +91,13 @@ for (const product of BAZAAR_GAP_PRODUCTS) {
     },
   } as any);
 
+  const browserDiscoveryMetadata = product.id === "browser.render"
+    ? {
+        serviceName: "PennyRail Browser Render",
+        tags: ["browser", "render", "markdown", "web", "agents"],
+      }
+    : {};
+
   gapRouteConfig[`POST ${product.bazaarPath}`] = {
     accepts: [{
       scheme: "exact",
@@ -101,6 +108,7 @@ for (const product of BAZAAR_GAP_PRODUCTS) {
     description: `${product.description} Exact-match PennyRail gap-arbitrage route.`,
     mimeType: "application/json",
     extensions: { ...discovery },
+    ...browserDiscoveryMetadata,
   };
 }
 

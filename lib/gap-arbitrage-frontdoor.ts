@@ -24,6 +24,14 @@ async function requestInput(req: NextRequest, fallback: unknown) {
 export function createGapArbitrageFrontdoor(id:string) {
   const product = GAP_ARBITRAGE_PRODUCTS.find(p=>p.id===id);
   if(!product) throw new Error(`unknown gap-arbitrage product ${id}`);
+
+  const discoveryMetadata = product.id === "browser.render"
+    ? {
+        serviceName: "PennyRail Browser Render",
+        tags: ["browser", "render", "markdown", "web", "agents"],
+      }
+    : undefined;
+
   const handler = async (req:NextRequest):Promise<NextResponse<any>> => {
     try {
       const input = await requestInput(req, product.sampleInput);
@@ -40,5 +48,9 @@ export function createGapArbitrageFrontdoor(id:string) {
       return NextResponse.json({error:error instanceof Error?error.message:"PennyRail execution failed"},{status:400});
     }
   };
-  return withX402(handler, penny(product.description, `$${product.priceUsd}`), x402Server);
+  return withX402(
+    handler,
+    penny(product.description, `$${product.priceUsd}`, discoveryMetadata),
+    x402Server,
+  );
 }
