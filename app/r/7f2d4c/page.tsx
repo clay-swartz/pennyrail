@@ -9,6 +9,7 @@ export default function Home(){
   const [catalog,setCatalog]=useState<any>(null);
   const [revenue,setRevenue]=useState<any>(null);
   const [yieldAudit,setYieldAudit]=useState<any>(null);
+  const [x402Flows,setX402Flows]=useState<any>(null);
   const [the402Registration,setThe402Registration]=useState<any>(null);
   const [the402Activation,setThe402Activation]=useState<any>(null);
   const [the402Status,setThe402Status]=useState<any>(null);
@@ -71,6 +72,12 @@ export default function Home(){
   async function loadYieldAudit(){
     setBusy("yield"); setYieldAudit(null);
     try{setYieldAudit(await adminCall("/api/radar/revenue-engine"))}
+    finally{setBusy("")}
+  }
+
+  async function loadX402Flows(){
+    setBusy("x402-flows"); setX402Flows(null);
+    try{setX402Flows(await adminCall("/api/money/x402-flows"))}
     finally{setBusy("")}
   }
 
@@ -162,6 +169,23 @@ export default function Home(){
       </button>
       {revenue?.basescan?<a href={revenue.basescan} target="_blank" rel="noreferrer" style={link}>Open BaseScan ↗</a>:null}
       {revenue?.error?<JsonBox value={revenue}/>:null}
+    </section>
+
+    <section style={{...box,marginBottom:16}}>
+      <div style={label}>X402 MONEY FLOWS · OBSERVED BUYERS</div>
+      <p style={{color:"#777",fontSize:11,lineHeight:1.7,margin:"0 0 12px"}}>
+        Spend at most $0.011 once to rank Base-USDC recipients by actual 24-hour settlements. Atomic-unit conversion, buyer count and repeat usage are gated before any product is recommended.
+      </p>
+      <button disabled={!hasAdmin||!!busy} onClick={loadX402Flows} style={primary}>
+        {busy==="x402-flows"?"Buying live flow data…":"Trace paid x402 flows · max $0.011"}
+      </button>
+      {x402Flows?.gate?<div style={{...metrics,marginTop:14}}>
+        <Metric title="Top recipient · 24h gross" value={`$${Number(x402Flows.gate.topRecipientGrossUsd24h||0).toFixed(2)}`}/>
+        <Metric title="Qualified recipients" value={String(x402Flows.gate.qualifiedRecipientCount||0)}/>
+        <Metric title="$1K gross proof" value={x402Flows.gate.observedRecipientAtOrAbove1000Gross24h?"YES":"NO"}/>
+        <Metric title="Clone ready" value={x402Flows.gate.cloneReady?"YES":"NO"}/>
+      </div>:null}
+      {x402Flows?<JsonBox value={x402Flows}/>:null}
     </section>
 
     <section style={{...box,marginBottom:16}}>
