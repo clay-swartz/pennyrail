@@ -12,6 +12,7 @@ type Level = {
 type Incentive = {
   id: string;
   marketTicker: string;
+  scheduleStatus: "ACTIVE_NOW" | "UPCOMING";
   start: string | null;
   end: string | null;
   rewardPoolUsd: number;
@@ -99,11 +100,10 @@ function activeNow(start: string | null, end: string | null): boolean {
   return (!Number.isFinite(s) || s <= now) && (!Number.isFinite(e) || e >= now);
 }
 
-async function activeLiquidityIncentives(): Promise<Incentive[]> {
-  const payload = await fetchJson(
-    `${KALSHI}/incentive_programs?status=active&type=liquidity&limit=10000`,
-    12000,
-  );
+function normalizeIncentives(
+  payload: any,
+  scheduleStatus: Incentive["scheduleStatus"],
+): Incentive[] {
   const rows: any[] = Array.isArray(payload?.incentive_programs)
     ? payload.incentive_programs
     : [];
@@ -112,6 +112,7 @@ async function activeLiquidityIncentives(): Promise<Incentive[]> {
     .map((row: any): Incentive => ({
       id: text(row?.id),
       marketTicker: text(row?.market_ticker),
+      scheduleStatus,
       start: row?.start_date ? String(row.start_date) : null,
       end: row?.end_date ? String(row.end_date) : null,
       rewardPoolUsd: kalshiRewardUsd(row?.period_reward),
@@ -122,9 +123,83 @@ async function activeLiquidityIncentives(): Promise<Incentive[]> {
     .filter((row: Incentive): boolean =>
       Boolean(row.marketTicker) &&
       row.rewardPoolUsd > 0 &&
-      row.targetSize > 0 &&
-      activeNow(row.start, row.end)
+      row.targetSize > 0
     );
+}
+
+function overlapsWindow(
+  incentive: Incentive,
+  windowStartMs: number,
+  windowEndMs: number,
+): boolean {
+  const startMs = incentive.start ? Date.parse(incentive.start) : NaN;
+  const endMs = incentive.end ? Date.parse(incentive.end) : NaN;
+  return (
+    Number.isFinite(startMs) &&
+    Number.isFinite(endMs) &&
+    startMs < windowEndMs &&
+    endMs > windowStartMs
+  );
+}
+
+function rewardAllocatedToWindow(
+  incentive: Incentive,
+  rewardUsd: number,
+  windowStartMs: number,
+  windowEndMs: number,
+): number {
+  const startMs = incentive.start ? Date.parse(incentive.start) : NaN;
+  const endMs = incentive.end ? Date.parse(incentive.end) : NaN;
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+    return 0;
+  }
+  const overlapMs = Math.max(
+    0,
+    Math.min(endMs, windowEndMs) - Math.max(startMs, windowStartMs),
+  );
+  return rewardUsd * (overlapMs / (endMs - startMs));
+}
+
+async function liquidityIncentiveSchedule(): Promise<{
+  rows: Incentive[];
+  scheduleComplete: boolean;
+  upcomingFetchError: string | null;
+}> {
+  const activePayload = await fetchJson(
+    `${KALSHI}/incentive_programs?status=active&type=liquidity&limit=10000`,
+    12000,
+  );
+  const upcomingResult = await fetchJson(
+    `${KALSHI}/incentive_programs?status=upcoming&type=liquidity&limit=10000`,
+    12000,
+  ).then(
+    payload => ({ payload, error: null as string | null }),
+    error => ({
+      payload: null,
+      error: error instanceof Error ? error.message : String(error),
+    }),
+  );
+
+  const combined = [
+    ...normalizeIncentives(activePayload, "ACTIVE_NOW"),
+    ...normalizeIncentives(upcomingResult.payload, "UPCOMING"),
+  ];
+  const deduped = new Map<string, Incentive>();
+  for (const incentive of combined) {
+    const key = incentive.id || [
+      incentive.marketTicker,
+      incentive.start,
+      incentive.end,
+      incentive.rewardPoolUsd,
+    ].join("|");
+    if (!deduped.has(key)) deduped.set(key, incentive);
+  }
+
+  return {
+    rows: [...deduped.values()],
+    scheduleComplete: upcomingResult.error == null,
+    upcomingFetchError: upcomingResult.error,
+  };
 }
 
 async function marketSnapshot(ticker: string): Promise<MarketSnapshot> {
@@ -429,11 +504,88 @@ function attractiveness(
   );
 }
 
-async function candidateRows(limit = 24): Promise<Array<{
-  incentive: Incentive;
-  market: MarketSnapshot;
-}>> {
-  const incentives = await activeLiquidityIncentives();
+function peakSimultaneousCapitalUsd(rows: AnyObj[]): number {
+  const events: Array<{ at: number; delta: number }> = [];
+  for (const row of rows) {
+    const start = Date.parse(String(row?.rewardPeriod?.start || ""));
+    const end = Date.parse(String(row?.rewardPeriod?.end || ""));
+    const capital = num(row?.baseline25PctTarget?.estimatedCapitalUsd);
+    if (
+      !Number.isFinite(start) ||
+      !Number.isFinite(end) ||
+      end <= start ||
+      capital <= 0
+    ) continue;
+    events.push({ at: start, delta: capital });
+    events.push({ at: end, delta: -capital });
+  }
+
+  events.sort((a, b) => a.at - b.at || a.delta - b.delta);
+  let current = 0;
+  let peak = 0;
+  for (const event of events) {
+    current += event.delta;
+    peak = Math.max(peak, current);
+  }
+  return peak;
+}
+
+async function candidateRows(limit = 30): Promise<{
+  rows: Array<{
+    incentive: Incentive;
+    market: MarketSnapshot;
+  }>;
+  schedule: {
+    windowStart: string;
+    windowEnd: string;
+    scheduleComplete: boolean;
+    upcomingFetchError: string | null;
+    programCount: number;
+    activeNowCount: number;
+    upcomingCount: number;
+    proratedRewardPoolUsd: number;
+    shortDurationProgramCount: number;
+    shortDurationProratedRewardPoolUsd: number;
+    evaluatedCandidateCount: number;
+  };
+}> {
+  const scheduleResult = await liquidityIncentiveSchedule();
+  const windowStartMs = Date.now();
+  const windowEndMs = windowStartMs + 24 * 60 * 60 * 1000;
+  const incentives = scheduleResult.rows
+    .filter((row: Incentive): boolean =>
+      overlapsWindow(row, windowStartMs, windowEndMs)
+    )
+    .map((row: Incentive): Incentive => ({
+      ...row,
+      scheduleStatus: activeNow(row.start, row.end) ? "ACTIVE_NOW" : "UPCOMING",
+    }));
+
+  const proratedRewardPoolUsd = incentives.reduce(
+    (sum: number, row: Incentive): number =>
+      sum + rewardAllocatedToWindow(
+        row,
+        row.rewardPoolUsd,
+        windowStartMs,
+        windowEndMs,
+      ),
+    0,
+  );
+  const shortDuration = incentives.filter((row: Incentive): boolean =>
+    row.durationMinutes != null &&
+    row.durationMinutes > 0 &&
+    row.durationMinutes <= 180
+  );
+  const shortDurationProratedRewardPoolUsd = shortDuration.reduce(
+    (sum: number, row: Incentive): number =>
+      sum + rewardAllocatedToWindow(
+        row,
+        row.rewardPoolUsd,
+        windowStartMs,
+        windowEndMs,
+      ),
+    0,
+  );
 
   const ranked = incentives
     .filter((row: Incentive): boolean =>
@@ -449,7 +601,7 @@ async function candidateRows(limit = 24): Promise<Array<{
       const bRate = b.durationMinutes ? b.rewardPoolUsd / b.durationMinutes : 0;
       return bRate - aRate;
     })
-    .slice(0, Math.max(limit * 3, 40));
+    .slice(0, Math.max(limit * 2, 40));
 
   const withMarkets = await Promise.all(
     ranked.map(async (incentive: Incentive) => {
@@ -464,7 +616,7 @@ async function candidateRows(limit = 24): Promise<Array<{
     }),
   );
 
-  return withMarkets
+  const rows = withMarkets
     .filter((row): row is { incentive: Incentive; market: MarketSnapshot } => row != null)
     .sort((a, b) => {
       // Prefer markets where fills are observable and spread is not enormous.
@@ -484,10 +636,30 @@ async function candidateRows(limit = 24): Promise<Array<{
       );
     })
     .slice(0, limit);
+
+  return {
+    rows,
+    schedule: {
+      windowStart: new Date(windowStartMs).toISOString(),
+      windowEnd: new Date(windowEndMs).toISOString(),
+      scheduleComplete: scheduleResult.scheduleComplete,
+      upcomingFetchError: scheduleResult.upcomingFetchError,
+      programCount: incentives.length,
+      activeNowCount: incentives.filter(row => row.scheduleStatus === "ACTIVE_NOW").length,
+      upcomingCount: incentives.filter(row => row.scheduleStatus === "UPCOMING").length,
+      proratedRewardPoolUsd,
+      shortDurationProgramCount: shortDuration.length,
+      shortDurationProratedRewardPoolUsd,
+      evaluatedCandidateCount: rows.length,
+    },
+  };
 }
 
 export async function runKalshiPaperModel(): Promise<AnyObj> {
-  const candidates = await candidateRows(20);
+  const candidateResult = await candidateRows(30);
+  const candidates = candidateResult.rows;
+  const windowStartMs = Date.parse(candidateResult.schedule.windowStart);
+  const windowEndMs = Date.parse(candidateResult.schedule.windowEnd);
   const sizeScenarios = [0.05, 0.10, 0.25, 0.50, 1.00];
 
   const evaluated = await Promise.all(
@@ -513,6 +685,7 @@ export async function runKalshiPaperModel(): Promise<AnyObj> {
         return {
           ticker: incentive.marketTicker,
           title: market.title,
+          scheduleStatus: incentive.scheduleStatus,
           rewardPeriod: {
             rewardPoolUsd: incentive.rewardPoolUsd,
             durationMinutes: incentive.durationMinutes,
@@ -534,6 +707,12 @@ export async function runKalshiPaperModel(): Promise<AnyObj> {
           },
           scenarios,
           baseline25PctTarget: baseline,
+          estimatedScheduledRewardWithinNext24hUsd: rewardAllocatedToWindow(
+            incentive,
+            baseline.estimatedRewardThisPeriodUsd,
+            windowStartMs,
+            windowEndMs,
+          ),
           score: attractiveness(market, baseline),
           riskFlags: [
             ...(market.spread != null && market.spread > 0.05 ? ["WIDE_SPREAD"] : []),
@@ -581,49 +760,54 @@ export async function runKalshiPaperModel(): Promise<AnyObj> {
     );
   });
 
-  const topPortfolio = investablePaper.slice(0, 8);
-  const portfolioRunRateUsdPerDay = topPortfolio.reduce(
+  const topPortfolio = investablePaper;
+  const scheduledGrossRewardNext24hUsd = topPortfolio.reduce(
     (sum: number, row: AnyObj) =>
-      sum + num(row?.baseline25PctTarget?.continuousRunRateUsdPerDay),
+      sum + num(row?.estimatedScheduledRewardWithinNext24hUsd),
     0,
   );
-  const simultaneousCapitalUsd = topPortfolio.reduce(
-    (sum: number, row: AnyObj) =>
-      sum + num(row?.baseline25PctTarget?.estimatedCapitalUsd),
-    0,
-  );
+  const peakCapitalUsd = peakSimultaneousCapitalUsd(topPortfolio);
+  const targetReached =
+    candidateResult.schedule.scheduleComplete &&
+    scheduledGrossRewardNext24hUsd >= 1000;
 
   return {
     ok: true,
     generatedAt: new Date().toISOString(),
     targetUsdPerDay: 1000,
-    model: "Kalshi liquidity reward snapshot paper model",
+    model: "Kalshi scheduled 24-hour liquidity reward paper model",
     methodology: {
-      source: "public Kalshi active incentive definitions + public market/orderbook data",
+      source: "public Kalshi active and upcoming incentive definitions + public market/orderbook data",
       quotePolicy:
         "Hypothetical post-only liquidity joins the current best YES and NO bids. No real orders are placed.",
       scoring:
         "Approximates Kalshi's current liquidity incentive formula: reference depth at target/5, price-level proportional treatment at the target boundary, distance discount, normalized score share on both sides, then pool-share estimate.",
       portfolioGate:
         "At 25% of target, both sides must qualify, both hypothetical orders must score, spread must be at most $0.05, recent volume must be at least 50 contracts or open interest at least 1,000, and one-sided loss cannot exceed period reward by more than 20x.",
+      schedulePolicy:
+        "The money gate sums only reward dollars actually scheduled inside the next 24 hours. Active long-duration pools are prorated to the remaining overlap. The hypothetical continuous repetition field is diagnostic only and is never used by the gate.",
       caveat:
         "This is a single live snapshot, not a realized earnings forecast. Actual rewards depend on every one-second snapshot, competing order changes, excluded snapshots, fills, maker fees, adverse selection and program continuity.",
     },
+    schedule: candidateResult.schedule,
     gate: {
-      targetReachedOnCurrent25PctSnapshotRunRate:
-        portfolioRunRateUsdPerDay >= 1000,
-      paperPortfolioRunRateUsdPerDay: portfolioRunRateUsdPerDay,
-      estimatedSimultaneousCapitalUsd: simultaneousCapitalUsd,
-      marketCount: topPortfolio.length,
+      targetReachedOnScheduledNext24hGrossReward: targetReached,
+      paperPortfolioScheduledGrossRewardNext24hUsd:
+        scheduledGrossRewardNext24hUsd,
+      estimatedPeakSimultaneousCapitalUsd: peakCapitalUsd,
+      incentivePeriodCount: topPortfolio.length,
+      uniqueMarketCount: new Set(topPortfolio.map(row => row?.ticker)).size,
       grossOnly: true,
       nextAction:
-        portfolioRunRateUsdPerDay >= 1000
+        !candidateResult.schedule.scheduleComplete
+          ? "SCHEDULE_DATA_INCOMPLETE_DO_NOT_FUND"
+          : targetReached
           ? "BUILD_PERSISTENT_24H_PAPER_WORKER"
-          : "DO_NOT_FUND_YET_KEEP_SEARCHING",
+          : "SHIFT_TO_NEXT_DIRECT_PAYER_LANE",
     },
     topPaperPortfolio: topPortfolio,
     rankedCandidates: ranked,
     note:
-      "No credentials, no trading and no capital are used by this endpoint. A live-money worker should not be enabled from one snapshot even if the run-rate exceeds $1,000/day.",
+      "No credentials, no trading and no capital are used by this endpoint. The gate is a conservative modeled subtotal of evaluated scheduled periods, not realized net earnings. A live-money worker must not be enabled without time-weighted paper evidence.",
   };
 }
