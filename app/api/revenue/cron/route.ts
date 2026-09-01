@@ -4,6 +4,7 @@ import { getCachedRevenueAudit } from "@/lib/revenue-engine-cache";
 import { activateThe402Provider } from "@/lib/the402";
 import { sweepThe402RequestsWithGapFallback } from "@/lib/gap-bidder";
 import { scanAgenteryPain } from "@/lib/agentery-pain";
+import { scanLeadYield } from "@/lib/lead-yield";
 
 export const dynamic = "force-dynamic";
 
@@ -66,32 +67,38 @@ const cachedPainRadar = unstable_cache(
   { revalidate: 21_600 },
 );
 
-// v52: money + pain radar. Paid-flow intelligence remains intact, while the
-// operator loop also watches zero-result/weak-match agent demand and open paid
-// requests. Existing capabilities bid first; safe unmatched digital work can
-// fall through to the bounded agent executor instead of being discarded.
+const cachedLeadYieldRadar = unstable_cache(
+  async () => scanLeadYield(),
+  ["pennyrail-lead-yield-v53"],
+  { revalidate: 21_600 },
+);
+
 export async function GET() {
-  const [audit, outbound, agent402, pain] = await Promise.all([
+  const [audit, outbound, agent402, pain, leadYield] = await Promise.all([
     getCachedRevenueAudit(),
     cachedOutboundSweep(),
     republishAgent402(),
     cachedPainRadar(),
+    cachedLeadYieldRadar(),
   ]);
+
   return NextResponse.json({
     ok: true,
     generatedAt: audit.generatedAt,
-    mode: "MONEY_PLUS_PAIN_RADAR_V52",
+    mode: "MONEY_PLUS_PAIN_PLUS_LEAD_YIELD_V53",
     sources: audit.sources,
     portfolio: audit.portfolio,
     opportunityCounts: {
       autoLive: audit.autoLive?.length || 0,
       unresolved: audit.unresolved?.length || 0,
       agenteryUnresolved: pain?.unresolvedGaps?.length || 0,
+      leadYieldObserved: leadYield?.economics?.payoutRowsObserved || 0,
     },
     intelligenceSpendUsdThisAudit: audit.economics?.intelligenceSpendUsdThisAudit ?? 0,
     intelligenceSpendCapUsdPerAudit: audit.economics?.intelligenceSpendCapUsdPerAudit ?? 0.01,
     outboundThe402: outbound,
     painRadar: pain,
+    leadYieldRadar: leadYield,
     distribution: { agent402Reindex: agent402 },
   });
 }
