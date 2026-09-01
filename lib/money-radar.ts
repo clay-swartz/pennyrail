@@ -323,8 +323,20 @@ export async function runMoneyRadar() {
   const startedAt = new Date().toISOString();
 
   const [polymarket, kalshi, x402] = await Promise.all([
-    polymarketIncentives().catch(error=>({error:error instanceof Error?error.message:String(error),top:[]})),
-    kalshiIncentives().catch(error=>({error:error instanceof Error?error.message:String(error),top:[]})),
+    polymarketIncentives().catch(error=>({
+      error:error instanceof Error?error.message:String(error),
+      activePeriods:0,
+      totalActiveRewardPoolUsd:0,
+      shareOfCurrentPoolsNeededFor1000:null,
+      top:[],
+    })),
+    kalshiIncentives().catch(error=>({
+      error:error instanceof Error?error.message:String(error),
+      activePrograms:0,
+      totalActiveRewardPoolUsd:0,
+      shareOfCurrentPoolsNeededFor1000:null,
+      top:[],
+    })),
     x402Opportunities(),
   ]);
 
