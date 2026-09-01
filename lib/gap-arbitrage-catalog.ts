@@ -12,10 +12,21 @@ export const GAP_ARBITRAGE_PRODUCTS: GapArbitrageProduct[] = [
   {
     id: "browser.render",
     path: "/api/agent/browser-render",
-    title: "Browser render to clean Markdown",
-    description: "Render a public webpage in a real headless browser with client-side JavaScript, then return clean LLM-ready Markdown. Built for SPAs and JS-heavy pages.",
-    priceUsd: 0.015,
-    intents: ["browser render", "render page", "headless browser", "javascript page", "spa render", "js heavy site", "browser extract"],
+    title: "Browser render — JS page to clean Markdown",
+    description: "Browser render for SPAs and JavaScript-heavy pages: execute client-side JavaScript through a browser-backed reader and return the main content as clean LLM-ready Markdown. Exact-match low-cost x402 endpoint for autonomous agents; no signup or API key.",
+    priceUsd: 0.004,
+    intents: [
+      "browser render",
+      "render page",
+      "render SPA",
+      "render JavaScript page",
+      "headless browser",
+      "headless browser markdown",
+      "javascript page",
+      "spa render",
+      "js heavy site",
+      "browser extract"
+    ],
     sampleInput: { url: "https://example.com", maxChars: 100000 },
   },
   {

@@ -21,8 +21,19 @@ const facilitator = mode === "mainnet" && !customFacilitatorUrl
 export const x402Server = new x402ResourceServer(facilitator);
 x402Server.register("eip155:*", new ExactEvmScheme());
 
-export const penny = (description: string, price = "$0.001") => ({
+type ResourceMetadata = {
+  serviceName?: string;
+  tags?: string[];
+};
+
+export const penny = (
+  description: string,
+  price = "$0.001",
+  metadata?: ResourceMetadata,
+) => ({
   accepts: [{ scheme: "exact", price, network, payTo }],
   description,
   mimeType: "application/json",
+  ...(metadata?.serviceName ? { serviceName: metadata.serviceName } : {}),
+  ...(metadata?.tags?.length ? { tags: metadata.tags } : {}),
 });
