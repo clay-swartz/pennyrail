@@ -113,6 +113,7 @@ export type AutopilotState = {
     liveCapitalReady: boolean;
     reason: string;
   };
+  migrations?: string[];
   errors: string[];
 };
 
@@ -891,6 +892,26 @@ export async function runAutopilotTick(
       : persisted || fallback;
   const state = existing || newState();
 
+  // v61 credited the first observed quote snapshot retroactively. Apply one
+  // explicit migration the first time this corrected code sees the old state.
+  // We intentionally discard any early reward accrual accumulated before the
+  // fix rather than preserve a number we cannot prove. Trade P&L is retained.
+  const rewardMigration = "v62-observed-interval-reward";
+  if (!(state.migrations || []).includes(rewardMigration)) {
+    state.kalshi.rewardAccrued = 0;
+    state.kalshi.totalNet = state.kalshi.tradeNet;
+    state.kalshi.peakTotalNet = Math.max(0, state.kalshi.tradeNet);
+    state.kalshi.maxDrawdown = Math.max(0, -state.kalshi.tradeNet);
+    state.kalshi.tickers = state.kalshi.tickers.map(row => ({
+      ...row,
+      reward: 0,
+    }));
+    state.migrations = [
+      ...(state.migrations || []),
+      rewardMigration,
+    ];
+  }
+
   if (state.lastSlot >= slot) {
     return {
       ok: true,
@@ -948,11 +969,19 @@ export async function runAutopilotTick(
     );
 
     const currentQuotes = buildCompactQuotes(model);
-    const intervalReward = rewardForInterval(
-      currentQuotes,
-      intervalStartMs,
-      intervalEndMs,
-    );
+
+    // Reward can only be credited for quotes we actually observed at the
+    // beginning of the interval. The bootstrap tick has no prior quote state,
+    // so it must accrue zero rather than retroactively awarding the current
+    // snapshot over the previous ten minutes.
+    const intervalReward =
+      state.lastTickAt && state.kalshi.previousQuotes.length
+        ? rewardForInterval(
+            state.kalshi.previousQuotes,
+            intervalStartMs,
+            intervalEndMs,
+          )
+        : 0;
 
     let trade: any = {
       observed: false,
