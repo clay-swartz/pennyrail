@@ -7,7 +7,7 @@
   ],
   "crons": [
     {
-      "path": "/api/revenue/cron",
+      "path": "/api/autopilot/bootstrap",
       "schedule": "17 3 * * *"
     }
   ]
