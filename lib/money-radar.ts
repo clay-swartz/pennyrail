@@ -24,7 +24,7 @@ function periodDays(start: unknown, end: unknown) {
   const s = start ? Date.parse(String(start)) : NaN;
   const e = end ? Date.parse(String(end)) : NaN;
   if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
-  return Math.max((e - s) / 86_400_000, 1 / 24);
+  return (e - s) / 86_400_000;
 }
 
 function rewardPerDay(rewardUsd: number, start: unknown, end: unknown) {
@@ -177,7 +177,9 @@ async function polymarketIncentives() {
       const m = payload?.marketData || {};
       const bid = n(m?.bestBid?.value, NaN);
       const ask = n(m?.bestAsk?.value, NaN);
-      const spread = Number.isFinite(bid) && Number.isFinite(ask) ? ask - bid : null;
+      const spread = Number.isFinite(bid) && Number.isFinite(ask)
+        ? Number((ask - bid).toFixed(4))
+        : null;
       const target = n(row.targetSize);
 
       // For a binary market, NO bid is approximately 1 - YES ask.

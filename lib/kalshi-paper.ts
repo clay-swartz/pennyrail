@@ -6,6 +6,7 @@ type Level = {
   price: number;
   count: number;
   ours: boolean;
+  ourCount: number;
 };
 
 type Incentive = {
@@ -37,6 +38,7 @@ type Scenario = {
   yesPrice: number | null;
   noPrice: number | null;
   bothSidesQualify: boolean;
+  bothOrdersScore: boolean;
   yesScoreShare: number;
   noScoreShare: number;
   estimatedPoolShare: number;
@@ -144,7 +146,7 @@ async function marketSnapshot(ticker: string): Promise<MarketSnapshot> {
     openInterest: num(m?.open_interest_fp),
     spread:
       yesBid != null && yesAsk != null
-        ? Math.max(0, yesAsk - yesBid)
+        ? Number(Math.max(0, yesAsk - yesBid).toFixed(4))
         : null,
   };
 }
@@ -194,9 +196,27 @@ function addOurOrder(
   price: number,
   count: number,
 ): Level[] {
-  const out: Level[] = levels.map(level => ({ ...level, ours: false }));
-  out.push({ price, count, ours: true });
-  return out.sort((a, b) => b.price - a.price);
+  const grouped = new Map<number, { count: number; ourCount: number }>();
+
+  for (const level of levels) {
+    const current = grouped.get(level.price) || { count: 0, ourCount: 0 };
+    current.count += level.count;
+    grouped.set(level.price, current);
+  }
+
+  const current = grouped.get(price) || { count: 0, ourCount: 0 };
+  current.count += count;
+  current.ourCount += count;
+  grouped.set(price, current);
+
+  return [...grouped.entries()]
+    .map(([levelPrice, level]) => ({
+      price: levelPrice,
+      count: level.count,
+      ours: level.ourCount > 0,
+      ourCount: level.ourCount,
+    }))
+    .sort((a, b) => b.price - a.price);
 }
 
 function sideScore(
@@ -212,6 +232,10 @@ function sideScore(
   totalDepth: number;
   qualifyingDepth: number;
 } {
+  // Public order books aggregate all resting quantity at the same price. Merge
+  // our hypothetical order into that price level before applying the target
+  // cutoff. Treating the aggregate row as FIFO ahead of us incorrectly forces
+  // our score to zero whenever the target boundary lands inside that row.
   const withUs = addOurOrder(levels, ourPrice, ourCount);
   const totalDepth = withUs.reduce((sum, level) => sum + level.count, 0);
   if (totalDepth < targetSize) {
@@ -256,6 +280,7 @@ function sideScore(
 
     const remaining = targetSize - cumulative;
     const included = Math.min(level.count, remaining);
+    const includedFraction = level.count > 0 ? included / level.count : 0;
     const ticksAway =
       level.price >= referencePrice
         ? 0
@@ -264,7 +289,9 @@ function sideScore(
     const raw = included * multiplier;
 
     totalRaw += raw;
-    if (level.ours) ourRaw += raw;
+    if (level.ours) {
+      ourRaw += level.ourCount * includedFraction * multiplier;
+    }
     cumulative += included;
   }
 
@@ -304,6 +331,7 @@ function simulateScenario(args: {
       yesPrice,
       noPrice,
       bothSidesQualify: false,
+      bothOrdersScore: false,
       yesScoreShare: 0,
       noScoreShare: 0,
       estimatedPoolShare: 0,
@@ -332,6 +360,7 @@ function simulateScenario(args: {
   );
 
   const bothSidesQualify = yes.qualifies && no.qualifies;
+  const bothOrdersScore = yes.ourShare > 0 && no.ourShare > 0;
   // Kalshi's snapshot score is our normalized share on YES plus our normalized
   // share on NO. The system-wide total is 2 when both sides qualify, so divide
   // by two for our approximate pool share at this snapshot.
@@ -361,6 +390,7 @@ function simulateScenario(args: {
     yesPrice,
     noPrice,
     bothSidesQualify,
+    bothOrdersScore,
     yesScoreShare: yes.ourShare,
     noScoreShare: no.ourShare,
     estimatedPoolShare,
@@ -506,9 +536,12 @@ export async function runKalshiPaperModel(): Promise<AnyObj> {
           baseline25PctTarget: baseline,
           score: attractiveness(market, baseline),
           riskFlags: [
-            ...(market.spread != null && market.spread > 0.08 ? ["WIDE_SPREAD"] : []),
+            ...(market.spread != null && market.spread > 0.05 ? ["WIDE_SPREAD"] : []),
             ...(market.volume24h < 100 ? ["LOW_VOLUME"] : []),
             ...(!baseline.bothSidesQualify ? ["WOULD_NOT_QUALIFY_NOW"] : []),
+            ...(baseline.bothSidesQualify && !baseline.bothOrdersScore
+              ? ["ONE_ORDER_DOES_NOT_SCORE"]
+              : []),
             ...(baseline.maxOneSidedLossUsd != null &&
               baseline.estimatedRewardThisPeriodUsd > 0 &&
               baseline.maxOneSidedLossUsd >
@@ -534,12 +567,16 @@ export async function runKalshiPaperModel(): Promise<AnyObj> {
   const investablePaper = ranked.filter((row: AnyObj): boolean => {
     const baseline = row?.baseline25PctTarget;
     const flags: string[] = Array.isArray(row?.riskFlags) ? row.riskFlags : [];
+    const observable =
+      row?.market?.volume24h >= 50 || row?.market?.openInterest >= 1000;
     return Boolean(
       baseline?.bothSidesQualify &&
+      baseline?.bothOrdersScore &&
       baseline?.continuousRunRateUsdPerDay > 0 &&
       row?.market?.spread != null &&
       row.market.spread <= 0.05 &&
-      row?.market?.volume24h >= 1000 &&
+      observable &&
+      !flags.includes("ONE_ORDER_DOES_NOT_SCORE") &&
       !flags.includes("ONE_SIDED_FILL_RISK_DOMINATES_REWARD"),
     );
   });
@@ -566,7 +603,9 @@ export async function runKalshiPaperModel(): Promise<AnyObj> {
       quotePolicy:
         "Hypothetical post-only liquidity joins the current best YES and NO bids. No real orders are placed.",
       scoring:
-        "Approximates Kalshi's current liquidity incentive formula: reference depth at target/5, distance discount, normalized score share on both sides, then pool-share estimate.",
+        "Approximates Kalshi's current liquidity incentive formula: reference depth at target/5, price-level proportional treatment at the target boundary, distance discount, normalized score share on both sides, then pool-share estimate.",
+      portfolioGate:
+        "At 25% of target, both sides must qualify, both hypothetical orders must score, spread must be at most $0.05, recent volume must be at least 50 contracts or open interest at least 1,000, and one-sided loss cannot exceed period reward by more than 20x.",
       caveat:
         "This is a single live snapshot, not a realized earnings forecast. Actual rewards depend on every one-second snapshot, competing order changes, excluded snapshots, fills, maker fees, adverse selection and program continuity.",
     },
@@ -576,6 +615,7 @@ export async function runKalshiPaperModel(): Promise<AnyObj> {
       paperPortfolioRunRateUsdPerDay: portfolioRunRateUsdPerDay,
       estimatedSimultaneousCapitalUsd: simultaneousCapitalUsd,
       marketCount: topPortfolio.length,
+      grossOnly: true,
       nextAction:
         portfolioRunRateUsdPerDay >= 1000
           ? "BUILD_PERSISTENT_24H_PAPER_WORKER"
