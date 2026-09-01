@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fulfillThe402Job, maybeBidThe402Request, verifyThe402WebhookSignature } from "@/lib/the402";
+import { verifyThe402WebhookSignature } from "@/lib/the402";
+import {
+  fulfillThe402JobWithGapFallback,
+  maybeBidThe402RequestWithGapFallback,
+} from "@/lib/gap-bidder";
 
 export const dynamic = "force-dynamic";
 
@@ -21,18 +25,15 @@ export async function POST(req: NextRequest) {
 
   try {
     if (payload?.type === "request.created") {
-      const result = await maybeBidThe402Request(payload, apiKey);
+      const result = await maybeBidThe402RequestWithGapFallback(payload, apiKey);
       return NextResponse.json({ ok: true, event: payload.type, result });
     }
     if (payload?.type === "job_dispatch") {
-      const result = await fulfillThe402Job(payload, apiKey);
+      const result = await fulfillThe402JobWithGapFallback(payload, apiKey);
       return NextResponse.json({ ok: true, event: payload.type, result });
     }
     return NextResponse.json({ ok: true, event: payload?.type || "unknown", ignored: true });
   } catch (error) {
-    // the402 retries failed deliveries only a small number of times. Surface a
-    // transient handler failure as non-2xx so a paid job/request gets another
-    // chance instead of being silently dropped. Bid placement is idempotent.
     return NextResponse.json({
       ok: false,
       event: payload?.type || "unknown",
