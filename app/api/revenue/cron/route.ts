@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { getCachedRevenueAudit } from "@/lib/revenue-engine-cache";
-import { activateThe402Provider, sweepThe402Requests } from "@/lib/the402";
+import { activateThe402Provider } from "@/lib/the402";
+import { sweepThe402RequestsWithGapFallback } from "@/lib/gap-bidder";
+import { scanAgenteryPain } from "@/lib/agentery-pain";
 
 export const dynamic = "force-dynamic";
 
@@ -41,41 +43,55 @@ const cachedOutboundSweep = unstable_cache(async () => {
       apiKey,
       webhookUrl: `${publicOrigin()}/api/the402/webhook`,
     });
-    const sweep = await sweepThe402Requests(apiKey, 25);
+    const sweep = await sweepThe402RequestsWithGapFallback(apiKey, 25);
     return {
       configured: true,
       servicesLive: Array.isArray(activation.services) ? activation.services.length : null,
       createdThisRun: activation.createdCount,
       checked: sweep.checked,
       bidsPlaced: sweep.bidsPlaced,
+      existingCapabilityBids: sweep.existingCapabilityBids,
+      gapBids: sweep.gapBids,
+      unresolvedObserved: sweep.unresolvedObserved,
+      bidResults: sweep.results,
     };
   } catch (error) {
     return { configured: true, error: error instanceof Error ? error.message : String(error) };
   }
-}, ["pennyrail-the402-outbound-v34"], { revalidate: 900 });
+}, ["pennyrail-the402-outbound-v52"], { revalidate: 900 });
 
-// v41 runs hourly. Revenue intelligence itself is cached for one hour and
-// hard-capped at $0.01/refresh. Agent402 re-registration is free and intentionally
-// runs each cron so new exact-match doors/demand aliases are picked up quickly.
+const cachedPainRadar = unstable_cache(
+  async () => scanAgenteryPain(),
+  ["pennyrail-agentery-pain-v52"],
+  { revalidate: 21_600 },
+);
+
+// v52: money + pain radar. Paid-flow intelligence remains intact, while the
+// operator loop also watches zero-result/weak-match agent demand and open paid
+// requests. Existing capabilities bid first; safe unmatched digital work can
+// fall through to the bounded agent executor instead of being discarded.
 export async function GET() {
-  const [audit, outbound, agent402] = await Promise.all([
+  const [audit, outbound, agent402, pain] = await Promise.all([
     getCachedRevenueAudit(),
     cachedOutboundSweep(),
     republishAgent402(),
+    cachedPainRadar(),
   ]);
   return NextResponse.json({
     ok: true,
     generatedAt: audit.generatedAt,
-    mode: audit.mode,
+    mode: "MONEY_PLUS_PAIN_RADAR_V52",
     sources: audit.sources,
     portfolio: audit.portfolio,
     opportunityCounts: {
       autoLive: audit.autoLive?.length || 0,
       unresolved: audit.unresolved?.length || 0,
+      agenteryUnresolved: pain?.unresolvedGaps?.length || 0,
     },
     intelligenceSpendUsdThisAudit: audit.economics?.intelligenceSpendUsdThisAudit ?? 0,
     intelligenceSpendCapUsdPerAudit: audit.economics?.intelligenceSpendCapUsdPerAudit ?? 0.01,
     outboundThe402: outbound,
+    painRadar: pain,
     distribution: { agent402Reindex: agent402 },
   });
 }
