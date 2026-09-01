@@ -453,17 +453,16 @@ const postResource = {
   },
 };
 
-// Keying the static route makes the Bazaar catalog URL explicit.
-const routePath = "/api/agent/url-contents";
-
+// This is a static route. Pass the RouteConfig directly.
+// Bazaar discovery still works; the static path key is optional.
 export const GET = withX402(
   getHandler,
-  { [routePath]: getResource },
+  getResource,
   x402Server,
 );
 
 export const POST = withX402(
   postHandler,
-  { [routePath]: postResource },
+  postResource,
   x402Server,
 );
