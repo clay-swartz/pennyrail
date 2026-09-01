@@ -165,7 +165,7 @@ async function extractOne(rawUrl: string, includeText: boolean, includeHighlight
   };
 }
 
-async function handler(req: NextRequest): Promise<NextResponse<any>> {
+const handler = async (req: NextRequest): Promise<NextResponse<any>> => {
   try {
     const body = await req.json();
     const rawUrls =
@@ -188,7 +188,7 @@ async function handler(req: NextRequest): Promise<NextResponse<any>> {
 
     const includeText = body?.text !== false;
     const includeHighlights = Boolean(body?.highlights);
-    const results = [];
+    const results: any[] = [];
 
     for (const url of urls) {
       try {
@@ -213,10 +213,10 @@ async function handler(req: NextRequest): Promise<NextResponse<any>> {
       error: error instanceof Error ? error.message : "invalid request",
     }, { status: 400 });
   }
-}
+};
 
 export const POST = withX402(
-  handler,
+  handler as any,
   penny(
     "Retrieve clean text and optional highlights from known public URLs. Low-cost URL content extraction for agent research, RAG and page-reading workflows.",
     "$0.001",
