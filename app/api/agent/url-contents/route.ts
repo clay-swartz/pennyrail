@@ -31,7 +31,10 @@ type UrlContentsResponse = {
   results?: UrlContentsItem[];
 };
 
-function json(body: UrlContentsResponse, status = 200): NextResponse<UrlContentsResponse> {
+function json(
+  body: UrlContentsResponse,
+  status = 200,
+): NextResponse<UrlContentsResponse> {
   return NextResponse.json<UrlContentsResponse>(body, { status });
 }
 
@@ -41,7 +44,7 @@ function isPrivateIp(ip: string) {
   if (ip.startsWith("::ffff:")) return isPrivateIp(ip.slice(7));
 
   const p = ip.split(".").map(Number);
-  if (p.length !== 4 || p.some(Number.isNaN)) return false;
+  if (p.length != 4 || p.some(Number.isNaN)) return false;
   const [a, b] = p;
 
   return (
@@ -66,17 +69,25 @@ async function assertPublicUrl(raw: string) {
   if (!["http:", "https:"].includes(url.protocol)) {
     throw new Error("URL must use http or https");
   }
+
   if (url.username || url.password) {
     throw new Error("URL credentials are not allowed");
   }
 
   const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (!host || host === "localhost" || host.endsWith(".local") || host.endsWith(".localhost")) {
+  if (
+    !host ||
+    host === "localhost" ||
+    host.endsWith(".local") ||
+    host.endsWith(".localhost")
+  ) {
     throw new Error("private/internal host is not allowed");
   }
 
   if (isIP(host)) {
-    if (isPrivateIp(host)) throw new Error("private/internal IP is not allowed");
+    if (isPrivateIp(host)) {
+      throw new Error("private/internal IP is not allowed");
+    }
   } else {
     const addresses = await lookup(host, { all: true, verbatim: true });
     if (!addresses.length || addresses.some(row => isPrivateIp(row.address))) {
@@ -96,7 +107,8 @@ async function safeFetch(raw: string) {
       redirect: "manual",
       cache: "no-store",
       headers: {
-        accept: "text/html,text/plain,application/json,application/xml,text/xml;q=0.9,*/*;q=0.5",
+        accept:
+          "text/html,text/plain,application/json,application/xml,text/xml;q=0.9,*/*;q=0.5",
         "user-agent": USER_AGENT,
       },
       signal: AbortSignal.timeout(12_000),
@@ -108,6 +120,7 @@ async function safeFetch(raw: string) {
 
     const location = response.headers.get("location");
     if (!location) return response;
+
     url = await assertPublicUrl(new URL(location, url).toString());
   }
 
@@ -159,8 +172,12 @@ function decodeEntities(value: string) {
   return value.replace(
     /&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi,
     (whole, key: string) => {
-      if (/^#x/i.test(key)) return String.fromCodePoint(parseInt(key.slice(2), 16));
-      if (key.startsWith("#")) return String.fromCodePoint(parseInt(key.slice(1), 10));
+      if (/^#x/i.test(key)) {
+        return String.fromCodePoint(parseInt(key.slice(2), 16));
+      }
+      if (key.startsWith("#")) {
+        return String.fromCodePoint(parseInt(key.slice(1), 10));
+      }
       return named[key.toLowerCase()] ?? whole;
     },
   );
@@ -172,7 +189,10 @@ function htmlToText(html: string) {
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ")
     .replace(/<svg\b[\s\S]*?<\/svg>/gi, " ")
-    .replace(/<(?:br|\/p|\/div|\/li|\/h[1-6]|\/section|\/article|\/tr)>/gi, "\n")
+    .replace(
+      /<(?:br|\/p|\/div|\/li|\/h[1-6]|\/section|\/article|\/tr)>/gi,
+      "\n",
+    )
     .replace(/<[^>]+>/g, " ");
 
   return decodeEntities(cleaned)
@@ -242,7 +262,54 @@ async function extractOne(
   };
 }
 
-const handler = async (
+async function execute(
+  urls: string[],
+  includeText: boolean,
+  includeHighlights: boolean,
+): Promise<NextResponse<UrlContentsResponse>> {
+  if (!urls.length) {
+    return json({ error: "url is required" }, 400);
+  }
+
+  if (urls.length > MAX_URLS) {
+    return json({ error: `maximum ${MAX_URLS} URLs per call` }, 400);
+  }
+
+  const results: UrlContentsItem[] = [];
+
+  for (const url of urls) {
+    try {
+      results.push(await extractOne(url, includeText, includeHighlights));
+    } catch (error) {
+      results.push({
+        id: url,
+        url,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return json({
+    ok: true,
+    priceUsd: 0.001,
+    service: "PennyRail URL Contents",
+    results,
+  });
+}
+
+const getHandler = async (
+  req: NextRequest,
+): Promise<NextResponse<UrlContentsResponse>> => {
+  const url = req.nextUrl.searchParams.get("url")?.trim() || "";
+  const includeText = req.nextUrl.searchParams.get("text") !== "false";
+  const includeHighlights =
+    req.nextUrl.searchParams.get("highlights") === "1" ||
+    req.nextUrl.searchParams.get("highlights") === "true";
+
+  return execute(url ? [url] : [], includeText, includeHighlights);
+};
+
+const postHandler = async (
   req: NextRequest,
 ): Promise<NextResponse<UrlContentsResponse>> => {
   try {
@@ -258,14 +325,6 @@ const handler = async (
       .map((value: unknown) => String(value || "").trim())
       .filter(Boolean);
 
-    if (!urls.length) {
-      return json({ error: "urls is required" }, 400);
-    }
-
-    if (urls.length > MAX_URLS) {
-      return json({ error: `maximum ${MAX_URLS} URLs per call` }, 400);
-    }
-
     if (body?.summary) {
       return json(
         {
@@ -276,28 +335,11 @@ const handler = async (
       );
     }
 
-    const includeText = body?.text !== false;
-    const includeHighlights = Boolean(body?.highlights);
-    const results: UrlContentsItem[] = [];
-
-    for (const url of urls) {
-      try {
-        results.push(await extractOne(url, includeText, includeHighlights));
-      } catch (error) {
-        results.push({
-          id: url,
-          url,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    return json({
-      ok: true,
-      priceUsd: 0.001,
-      service: "PennyRail URL Contents",
-      results,
-    });
+    return execute(
+      urls,
+      body?.text !== false,
+      Boolean(body?.highlights),
+    );
   } catch (error) {
     return json(
       {
@@ -308,22 +350,21 @@ const handler = async (
   }
 };
 
-export const POST = withX402(
-  handler,
-  penny(
-    "Retrieve clean text and optional highlights from known public URLs. Low-cost URL content extraction for agent research, RAG and page-reading workflows.",
-    "$0.001",
-    {
-      serviceName: "PennyRail URL Contents",
-      tags: [
-        "url-contents",
-        "web-extraction",
-        "scrape",
-        "research",
-        "rag",
-        "page-reader",
-      ],
-    },
-  ),
-  x402Server,
+const resource = penny(
+  "Retrieve clean text and optional highlights from known public URLs. Low-cost URL content extraction for agent research, RAG and page-reading workflows.",
+  "$0.001",
+  {
+    serviceName: "PennyRail URL Contents",
+    tags: [
+      "url-contents",
+      "web-extraction",
+      "scrape",
+      "research",
+      "rag",
+      "page-reader",
+    ],
+  },
 );
+
+export const GET = withX402(getHandler, resource, x402Server);
+export const POST = withX402(postHandler, resource, x402Server);

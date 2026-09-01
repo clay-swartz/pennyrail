@@ -10,7 +10,6 @@ import {
 import { sweepThe402RequestsWithGapFallback } from "@/lib/gap-bidder";
 import { scanAgenteryPain } from "@/lib/agentery-pain";
 import { scanLeadYield } from "@/lib/lead-yield";
-import { paidFetchBaseUsdcCapped } from "@/lib/radar-buyer";
 import { resolveRevenueNeed } from "@/lib/revenue-engine";
 
 function origin() {
@@ -60,6 +59,56 @@ async function registerAgent402() {
   } catch (error) {
     return {
       ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function registerX402DashUrlContents() {
+  const endpoint = `${origin()}/api/agent/url-contents`;
+
+  try {
+    const response = await fetch(
+      "https://api.x402dash.com/v1/register",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+        },
+        body: JSON.stringify({
+          url: endpoint,
+          name: "PennyRail URL Contents",
+          description:
+            "Retrieve clean text and optional highlights from public URLs for agent research, RAG and page-reading workflows.",
+          category: "Search/Research",
+          tags: [
+            "url contents",
+            "page text",
+            "web extraction",
+            "research",
+            "rag",
+            "agent",
+          ],
+          contact: origin(),
+        }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(20_000),
+      },
+    );
+
+    const body = await parseJson(response);
+
+    return {
+      ok: response.ok || response.status === 409,
+      status: response.status,
+      endpoint,
+      response: body,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      endpoint,
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -117,63 +166,45 @@ function demandMatches(...bodies: any[]) {
   });
 }
 
-async function readAgent402Intel() {
+async function readAgent402FreeSignals() {
   const result: any = {
     ok: false,
-    maxSpendUsd: 0.006,
     wishes: null,
-    bestsellers: null,
+    sales: null,
     error: null,
   };
 
   try {
-    // Unmet demand is intentionally public at /api/wishes. Do not pay for the
-    // analysis wrapper when the raw demand signal is enough for PennyRail's
-    // own scorer.
-    const wishesPromise = fetch("https://agent402.tools/api/wishes", {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-      signal: AbortSignal.timeout(20_000),
-    });
-
-    // Bestseller data is private seller intelligence and costs $0.005.
-    // Hard cap remains $0.006; a price change above that is refused.
-    const paidFetch = await paidFetchBaseUsdcCapped(0.006);
-    const bestsellersPromise = paidFetch(
-      "https://agent402.tools/api/bestsellers?days=30&sort=buyers&limit=50",
-      {
+    const [wishesResponse, salesResponse] = await Promise.all([
+      fetch("https://agent402.tools/api/wishes", {
         headers: { accept: "application/json" },
         cache: "no-store",
         signal: AbortSignal.timeout(20_000),
-      },
-    );
-
-    const [wishesResponse, bestsellerResponse] = await Promise.all([
-      wishesPromise,
-      bestsellersPromise,
+      }),
+      fetch("https://agent402.tools/api/sales", {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+        signal: AbortSignal.timeout(20_000),
+      }),
     ]);
 
     result.wishes = await parseJson(wishesResponse);
-    result.bestsellers = await parseJson(bestsellerResponse);
-    result.ok = wishesResponse.ok && bestsellerResponse.ok;
+    result.sales = await parseJson(salesResponse);
+    result.ok = wishesResponse.ok && salesResponse.ok;
 
     if (!result.ok) {
-      result.error = `Agent402 intel HTTP wishes=${wishesResponse.status} bestsellers=${bestsellerResponse.status}`;
+      result.error =
+        `Agent402 free signals HTTP wishes=${wishesResponse.status} sales=${salesResponse.status}`;
     }
   } catch (error) {
     result.error =
       error instanceof Error ? error.message : String(error);
   }
 
-  result.matches = demandMatches(
-    result.wishes,
-    result.bestsellers,
-  );
-
+  result.matches = demandMatches(result.wishes);
   result.sellableNow = result.matches
     .filter((row: any) => row.canSellNow)
     .slice(0, 40);
-
   result.unmatched = result.matches
     .filter((row: any) => !row.canSellNow)
     .slice(0, 40);
@@ -181,7 +212,44 @@ async function readAgent402Intel() {
   return result;
 }
 
+async function the402Health() {
+  try {
+    const response = await fetch("https://api.the402.ai/health", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    const body = await parseJson(response);
+    return {
+      ok: response.ok,
+      paused: Boolean(body?.paused || body?.status === "paused"),
+      body,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      paused: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 async function runThe402() {
+  const health = await the402Health();
+
+  if (health.paused) {
+    return {
+      configured: false,
+      acted: false,
+      platformPaused: true,
+      reason:
+        health.body?.pause_reason ||
+        health.body?.reason ||
+        "platform paused",
+    };
+  }
+
   try {
     const credentials = await getThe402RuntimeCredentials(origin());
 
@@ -191,8 +259,6 @@ async function runThe402() {
       webhookUrl: the402WebhookUrl(origin()),
     });
 
-    // This is an action: existing capabilities bid first; safe unmatched
-    // digital work falls through to the bounded AI gap executor.
     const sweep = await sweepThe402RequestsWithGapFallback(
       credentials.api_key,
       50,
@@ -240,15 +306,20 @@ export async function runMoneyHunter() {
 
   const audit = await getCachedRevenueAudit();
 
-  const [agent402Intel, agenteryPain, leadYield, the402] =
-    await Promise.all([
-      readAgent402Intel(),
-      scanAgenteryPain(),
-      scanLeadYield(),
-      runThe402(),
-    ]);
+  const [
+    agent402Signals,
+    agenteryPain,
+    leadYield,
+    the402,
+    x402Dash,
+  ] = await Promise.all([
+    readAgent402FreeSignals(),
+    scanAgenteryPain(),
+    scanLeadYield(),
+    runThe402(),
+    registerX402DashUrlContents(),
+  ]);
 
-  // Refresh external routing after live aliases and current service state exist.
   const agent402Registration = await registerAgent402();
 
   const automaticActions = [
@@ -261,14 +332,13 @@ export async function runMoneyHunter() {
       },
     },
     {
-      action: "READ_FREE_AGENT402_WISHES_AND_BUY_BESTSELLERS",
-      executed: agent402Intel.ok,
-      maxSpendUsd: agent402Intel.maxSpendUsd,
+      action: "READ_FREE_AGENT402_DEMAND_SIGNALS",
+      executed: agent402Signals.ok,
       sellableSignalsFound:
-        agent402Intel.sellableNow?.length || 0,
+        agent402Signals.sellableNow?.length || 0,
       unmatchedSignalsFound:
-        agent402Intel.unmatched?.length || 0,
-      error: agent402Intel.error || null,
+        agent402Signals.unmatched?.length || 0,
+      error: agent402Signals.error || null,
     },
     {
       action: "REGISTER_OR_REFRESH_AGENT402_SELLER",
@@ -276,8 +346,14 @@ export async function runMoneyHunter() {
       result: agent402Registration,
     },
     {
-      action: "SELF_REGISTER_THE402_AND_AUTO_BID",
+      action: "REGISTER_PROVEN_URL_CONTENTS_X402DASH",
+      executed: Boolean(x402Dash.ok),
+      result: x402Dash,
+    },
+    {
+      action: "THE402_AUTO_BID_IF_PLATFORM_LIVE",
       executed: Boolean(the402.acted),
+      platformPaused: Boolean(the402.platformPaused),
       credentialMode: the402.credentialMode || null,
       servicesCreatedThisRun:
         the402.servicesCreatedThisRun || 0,
@@ -288,7 +364,7 @@ export async function runMoneyHunter() {
 
   return {
     ok: true,
-    mode: "AUTONOMOUS_MONEY_HUNTER_V57",
+    mode: "AUTONOMOUS_MONEY_HUNTER_V58",
     targetNetUsdPerDay: 1000,
     generatedAt: new Date().toISOString(),
     elapsedMs: Date.now() - startedAt,
@@ -302,8 +378,9 @@ export async function runMoneyHunter() {
 
     signals: {
       agent402: {
-        sellableNow: agent402Intel.sellableNow,
-        unmatched: agent402Intel.unmatched,
+        sellableNow: agent402Signals.sellableNow,
+        unmatched: agent402Signals.unmatched,
+        aggregateSales: agent402Signals.sales,
       },
       agenteryPain: {
         ok: agenteryPain?.ok ?? false,
@@ -329,19 +406,20 @@ export async function runMoneyHunter() {
       leadYieldObserved:
         leadYield?.economics?.payoutRowsObserved || 0,
       agent402SellableSignals:
-        agent402Intel.sellableNow?.length || 0,
+        agent402Signals.sellableNow?.length || 0,
       agent402UnmatchedSignals:
-        agent402Intel.unmatched?.length || 0,
+        agent402Signals.unmatched?.length || 0,
       the402BidsPlaced: the402.bidsPlaced || 0,
+      x402DashRegistered: x402Dash.ok ? 1 : 0,
     },
 
     raw: {
       the402,
+      x402Dash,
       agent402Registration,
-      agent402Intel: {
-        ok: agent402Intel.ok,
-        maxSpendUsd: agent402Intel.maxSpendUsd,
-        error: agent402Intel.error,
+      agent402Signals: {
+        ok: agent402Signals.ok,
+        error: agent402Signals.error,
       },
     },
   };
