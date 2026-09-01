@@ -14,6 +14,35 @@ function clean(s: unknown) {
   return String(s ?? "").replace(/\s+/g, " ").trim();
 }
 
+function kalshiRewardUsd(raw: unknown) {
+  // Kalshi's incentive `period_reward` is centi-cents:
+  // 1 unit = $0.0001. Example: 10,000,000 => $1,000.
+  return n(raw) / 10_000;
+}
+
+function periodDays(start: unknown, end: unknown) {
+  const s = start ? Date.parse(String(start)) : NaN;
+  const e = end ? Date.parse(String(end)) : NaN;
+  if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
+  return Math.max((e - s) / 86_400_000, 1 / 24);
+}
+
+function rewardPerDay(rewardUsd: number, start: unknown, end: unknown) {
+  const days = periodDays(start, end);
+  return days ? rewardUsd / days : null;
+}
+
+function rewardShareScenarios(maxPerDay: number | null) {
+  if (maxPerDay == null || !Number.isFinite(maxPerDay)) return null;
+  return {
+    at1PctShare: maxPerDay * 0.01,
+    at5PctShare: maxPerDay * 0.05,
+    at10PctShare: maxPerDay * 0.10,
+    at25PctShare: maxPerDay * 0.25,
+    at50PctShare: maxPerDay * 0.50,
+  };
+}
+
 async function json(url: string, timeoutMs = 12000): Promise<any> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -64,16 +93,51 @@ async function polymarketIncentives() {
   const programs = Array.isArray(first?.programs) ? first.programs : [];
 
   const rows: AnyObj[] = [];
+  const uniquePeriods = new Map<string, {
+    key: string;
+    programId: string;
+    period: string;
+    start: unknown;
+    end: unknown;
+    rewardPoolUsd: number;
+    marketCount: number;
+  }>();
+
   for (const p of programs) {
     const periods = Array.isArray(p?.timePeriods) ? p.timePeriods : [];
     for (const period of periods) {
       if (String(period?.status || "").toLowerCase() !== "active" && !activeNow(period?.start, period?.end)) continue;
+
       const reward = n(period?.rewardPool);
       const target = n(period?.targetSize);
+      const programId = clean(period?.programId);
+      const key = [
+        programId,
+        clean(period?.period),
+        String(period?.start ?? ""),
+        String(period?.end ?? ""),
+        String(reward),
+      ].join("|");
+
+      const existing = uniquePeriods.get(key);
+      if (existing) {
+        existing.marketCount += 1;
+      } else {
+        uniquePeriods.set(key, {
+          key,
+          programId,
+          period: clean(period?.period),
+          start: period?.start ?? null,
+          end: period?.end ?? null,
+          rewardPoolUsd: reward,
+          marketCount: 1,
+        });
+      }
+
       rows.push({
         venue: "Polymarket US",
         marketSlug: clean(p?.marketSlug),
-        programId: clean(period?.programId),
+        programId,
         programType: clean(period?.programType),
         period: clean(period?.period),
         start: period?.start ?? null,
@@ -81,15 +145,29 @@ async function polymarketIncentives() {
         rewardPoolUsd: reward,
         discountFactor: n(period?.discountFactor, 1),
         targetSize: target,
-        rewardPerTargetContract: target > 0 ? reward / target : null,
-        shareNeededFor1000: reward > 0 ? 1000 / reward : null,
+        // IMPORTANT: rewardPool is shared across a program/time-period's markets.
+        // This per-market row does NOT own the whole pool.
+        sharedPoolKey: key,
+        rewardPoolSharedAcrossProgram: true,
       });
     }
   }
 
+  const marketCounts = new Map<string, number>();
+  for (const [key, period] of uniquePeriods) marketCounts.set(key, period.marketCount);
+
+  for (const row of rows) {
+    const count = marketCounts.get(row.sharedPoolKey) || 1;
+    row.programMarketCount = count;
+    row.equalSharePoolPerMarketUsd = row.rewardPoolUsd / count;
+    const days = periodDays(row.start, row.end);
+    row.periodDays = days;
+    row.equalSharePoolPerMarketPerDayUsd = days ? row.equalSharePoolPerMarketUsd / days : null;
+  }
+
   rows.sort((a,b) =>
-    n(b.rewardPoolUsd) - n(a.rewardPoolUsd) ||
-    n(b.rewardPerTargetContract) - n(a.rewardPerTargetContract)
+    n(b.equalSharePoolPerMarketPerDayUsd) - n(a.equalSharePoolPerMarketPerDayUsd) ||
+    n(b.equalSharePoolPerMarketUsd) - n(a.equalSharePoolPerMarketUsd)
   );
 
   const top = rows.slice(0, 20);
@@ -99,25 +177,41 @@ async function polymarketIncentives() {
       const m = payload?.marketData || {};
       const bid = n(m?.bestBid?.value, NaN);
       const ask = n(m?.bestAsk?.value, NaN);
+      const spread = Number.isFinite(bid) && Number.isFinite(ask) ? ask - bid : null;
+      const target = n(row.targetSize);
+
+      // For a binary market, NO bid is approximately 1 - YES ask.
+      // If we alone posted target size on both sides at current BBO, this is
+      // the rough maximum collateral footprint. This is NOT a recommendation.
+      const twoSidedCapitalAtBbo =
+        target > 0 && Number.isFinite(bid) && Number.isFinite(ask)
+          ? target * (bid + (1 - ask))
+          : null;
+
       return {
         ...row,
         bestBid: Number.isFinite(bid) ? bid : null,
         bestAsk: Number.isFinite(ask) ? ask : null,
-        spread: Number.isFinite(bid) && Number.isFinite(ask) ? ask - bid : null,
+        spread,
         openInterest: m?.openInterest ?? null,
         sharesTraded: m?.sharesTraded ?? null,
+        estimatedTwoSidedCapitalAtTargetBboUsd: twoSidedCapitalAtBbo,
+        rewardScenariosUsdPerDay: rewardShareScenarios(row.equalSharePoolPerMarketPerDayUsd),
       };
     } catch (error) {
       return { ...row, marketDataError: error instanceof Error ? error.message : String(error) };
     }
   }));
 
+  const unique = [...uniquePeriods.values()];
+  const totalUniqueActiveRewardPoolUsd = unique.reduce((s, r) => s + n(r.rewardPoolUsd), 0);
+
   return {
-    activePeriods: rows.length,
-    totalActiveRewardPoolUsd: rows.reduce((s,r)=>s+n(r.rewardPoolUsd),0),
-    shareOfCurrentPoolsNeededFor1000: rows.reduce((s,r)=>s+n(r.rewardPoolUsd),0) > 0
-      ? 1000 / rows.reduce((s,r)=>s+n(r.rewardPoolUsd),0)
-      : null,
+    activeMarketPeriods: rows.length,
+    uniqueActiveProgramPeriods: unique.length,
+    totalUniqueActiveRewardPoolUsd,
+    accountingNote:
+      "Polymarket rewardPool is a program/time-period pool shared across markets. totalUniqueActiveRewardPoolUsd dedupes repeated market rows by program/time period.",
     top: marketData,
   };
 }
@@ -127,8 +221,11 @@ async function kalshiIncentives() {
   const raw = Array.isArray(payload?.incentive_programs) ? payload.incentive_programs : [];
 
   const rows = raw.map((p:any) => {
-    const reward = n(p?.period_reward);
+    const reward = kalshiRewardUsd(p?.period_reward);
     const target = n(p?.target_size_fp);
+    const days = periodDays(p?.start_date, p?.end_date);
+    const perDay = days ? reward / days : null;
+
     return {
       venue: "Kalshi",
       id: clean(p?.id),
@@ -137,32 +234,53 @@ async function kalshiIncentives() {
       description: clean(p?.incentive_description),
       start: p?.start_date ?? null,
       end: p?.end_date ?? null,
+      rawPeriodRewardCentiCents: n(p?.period_reward),
       rewardPoolUsd: reward,
+      periodDays: days,
+      maxRewardUsdPerDayIfFullyPaid: perDay,
       discountFactor: n(p?.discount_factor_bps) / 10000,
       targetSize: target,
-      rewardPerTargetContract: target > 0 ? reward / target : null,
-      shareNeededFor1000: reward > 0 ? 1000 / reward : null,
+      rewardPerTargetContractForWholePeriod: target > 0 ? reward / target : null,
+      rewardScenariosUsdPerDay: rewardShareScenarios(perDay),
     };
   }).sort((a:any,b:any) =>
-    n(b.rewardPoolUsd) - n(a.rewardPoolUsd) ||
-    n(b.rewardPerTargetContract) - n(a.rewardPerTargetContract)
+    n(b.maxRewardUsdPerDayIfFullyPaid) - n(a.maxRewardUsdPerDayIfFullyPaid) ||
+    n(b.rewardPoolUsd) - n(a.rewardPoolUsd)
   );
 
-  const top = rows.slice(0, 20);
+  const top = rows.slice(0, 30);
   const enriched = await Promise.all(top.map(async (row:any) => {
     if (!row.marketTicker) return row;
     try {
       const m = (await json(`${KALSHI}/markets/${encodeURIComponent(row.marketTicker)}`, 7000))?.market || {};
+      const yesBid = n(m?.yes_bid_dollars, NaN);
+      const yesAsk = n(m?.yes_ask_dollars, NaN);
+      const noBid = n(m?.no_bid_dollars, NaN);
+      const noAsk = n(m?.no_ask_dollars, NaN);
+      const target = n(row.targetSize);
+
+      // Rough collateral footprint if we alone supplied target-size BUY liquidity
+      // on both sides at the current best bids. Actual scoring is pro-rata and
+      // depends on all competing resting liquidity every second.
+      const twoSidedCapital =
+        target > 0 && Number.isFinite(yesBid) && Number.isFinite(noBid)
+          ? target * (yesBid + noBid)
+          : null;
+
+      const maxPerDay = row.maxRewardUsdPerDayIfFullyPaid;
       return {
         ...row,
         title: clean(m?.title),
-        yesBid: n(m?.yes_bid_dollars, NaN),
-        yesAsk: n(m?.yes_ask_dollars, NaN),
-        noBid: n(m?.no_bid_dollars, NaN),
-        noAsk: n(m?.no_ask_dollars, NaN),
+        yesBid: Number.isFinite(yesBid) ? yesBid : null,
+        yesAsk: Number.isFinite(yesAsk) ? yesAsk : null,
+        noBid: Number.isFinite(noBid) ? noBid : null,
+        noAsk: Number.isFinite(noAsk) ? noAsk : null,
         volume24h: n(m?.volume_24h_fp),
         openInterest: n(m?.open_interest_fp),
         liquidityUsd: n(m?.liquidity_dollars),
+        estimatedTwoSidedCapitalAtTargetBidsUsd: twoSidedCapital,
+        fullPoolDailyRewardToCapitalCeiling:
+          twoSidedCapital && maxPerDay != null ? maxPerDay / twoSidedCapital : null,
         rulesPrimary: clean(m?.rules_primary).slice(0,1200),
         rulesSecondary: clean(m?.rules_secondary).slice(0,1200),
       };
@@ -171,12 +289,17 @@ async function kalshiIncentives() {
     }
   }));
 
+  const totalActivePeriodRewardUsd = rows.reduce((s:any,r:any)=>s+n(r.rewardPoolUsd),0);
+  const totalMaxRewardUsdPerDay = rows.reduce((s:any,r:any)=>s+n(r.maxRewardUsdPerDayIfFullyPaid),0);
+
   return {
     activePrograms: rows.length,
-    totalActiveRewardPoolUsd: rows.reduce((s:any,r:any)=>s+n(r.rewardPoolUsd),0),
-    shareOfCurrentPoolsNeededFor1000: rows.reduce((s:any,r:any)=>s+n(r.rewardPoolUsd),0) > 0
-      ? 1000 / rows.reduce((s:any,r:any)=>s+n(r.rewardPoolUsd),0)
-      : null,
+    totalActivePeriodRewardUsd,
+    totalMaxRewardUsdPerDay,
+    theoreticalShareOfAllActiveDailyRewardsNeededFor1000:
+      totalMaxRewardUsdPerDay > 0 ? 1000 / totalMaxRewardUsdPerDay : null,
+    accountingNote:
+      "Kalshi period_reward is centi-cents (1 unit = $0.0001), not dollars. maxRewardUsdPerDayIfFullyPaid divides each time-period reward by its scheduled duration; actual payout is pro-rata by snapshot score and can be lower when snapshots are excluded.",
     top: enriched,
   };
 }
@@ -289,33 +412,48 @@ async function x402Opportunities() {
 
 function topUnified(poly:any, kalshi:any, arbs:any[]) {
   const rows:any[] = [];
+
   for (const r of poly?.top || []) {
+    const daily = n(r.equalSharePoolPerMarketPerDayUsd);
+    const capital = n(r.estimatedTwoSidedCapitalAtTargetBboUsd);
     rows.push({
       lane: "POLYMARKET_LIQUIDITY_REWARD",
       id: r.marketSlug,
-      headlineUsd: n(r.rewardPoolUsd),
-      score: n(r.rewardPerTargetContract) * 100 + Math.log10(1+n(r.rewardPoolUsd))*10,
+      headlineUsdPerDay: daily || null,
+      estimatedCapitalAtTargetUsd: capital || null,
+      score:
+        (capital > 0 ? daily / capital : 0) * 1000 +
+        Math.log10(1 + Math.max(0, daily)) * 10,
       details: r,
     });
   }
+
   for (const r of kalshi?.top || []) {
+    const daily = n(r.maxRewardUsdPerDayIfFullyPaid);
+    const capital = n(r.estimatedTwoSidedCapitalAtTargetBidsUsd);
     rows.push({
-      lane: "KALSHI_INCENTIVE",
+      lane: r.incentiveType === "liquidity" ? "KALSHI_LIQUIDITY_REWARD" : "KALSHI_VOLUME_REWARD",
       id: r.marketTicker,
-      headlineUsd: n(r.rewardPoolUsd),
-      score: n(r.rewardPerTargetContract) * 100 + Math.log10(1+n(r.rewardPoolUsd))*10,
+      headlineUsdPerDay: daily || null,
+      estimatedCapitalAtTargetUsd: capital || null,
+      score:
+        (capital > 0 ? daily / capital : 0) * 1000 +
+        Math.log10(1 + Math.max(0, daily)) * 10,
       details: r,
     });
   }
+
   for (const r of arbs || []) {
     rows.push({
       lane: "CROSS_VENUE_ARBITRAGE",
       id: `${r.kalshi?.ticker || ""} ↔ ${r.polymarket?.slug || ""}`,
-      headlineUsd: n(r.grossEdgeUsdPerPair),
+      headlineUsdPerDay: null,
+      estimatedCapitalAtTargetUsd: null,
       score: n(r.grossEdgeUsdPerPair) * 1000 + n(r.similarity)*10,
       details: r,
     });
   }
+
   return rows.sort((a,b)=>b.score-a.score).slice(0,30);
 }
 
@@ -347,8 +485,8 @@ export async function runMoneyRadar() {
 
   const unified = topUnified(polymarket, kalshi, arbitrage);
 
-  const polyPool = n(polymarket?.totalActiveRewardPoolUsd);
-  const kalshiPool = n(kalshi?.totalActiveRewardPoolUsd);
+  const kalshiDailyCeiling = n(kalshi?.totalMaxRewardUsdPerDay);
+  const polyUniqueActivePool = n(polymarket?.totalUniqueActiveRewardPoolUsd);
 
   return {
     ok: true,
@@ -357,19 +495,23 @@ export async function runMoneyRadar() {
     targetUsdPerDay: 1000,
     decision: {
       primary:
-        polyPool >= kalshiPool
-          ? "POLYMARKET_US_LIQUIDITY_REWARD_FARMING"
-          : "KALSHI_LIQUIDITY_REWARD_FARMING",
+        kalshiDailyCeiling > 0
+          ? "KALSHI_LIQUIDITY_REWARD_PAPER_MODEL"
+          : "POLYMARKET_US_LIQUIDITY_REWARD_PAPER_MODEL",
       secondary: "CROSS_VENUE_ARBITRAGE",
       noCapitalLane: "PENNYRAIL_X402_GAP_ARBITRAGE",
       rule:
-        "Paper/simulate first. Only enable live capital after repeatable positive expected NET yield under conservative fill, fee and adverse-selection assumptions.",
+        "Do not infer earnings from headline reward pools. Rank by corrected reward-per-day, estimated collateral footprint, competing liquidity, fills, fees and adverse selection. No live capital until paper results stay positive.",
     },
     rewardInventory: {
       polymarket,
       kalshi,
-      combinedActiveRewardPoolUsd: polyPool + kalshiPool,
-      theoreticalShareOfCombinedCurrentPoolsFor1000: polyPool + kalshiPool > 0 ? 1000/(polyPool+kalshiPool) : null,
+      correctedSummary: {
+        kalshiMaxScheduledRewardUsdPerDayAcrossActivePrograms: kalshiDailyCeiling,
+        polymarketUniqueActiveProgramPeriodPoolUsd: polyUniqueActivePool,
+        warning:
+          "Kalshi daily figure is a payout ceiling before pro-rata competition/excluded snapshots. Polymarket figure is deduped active pool, not a daily earnings estimate.",
+      },
     },
     crossVenueArbitrage: {
       candidates: arbitrage,
@@ -384,6 +526,6 @@ export async function runMoneyRadar() {
     x402GapFeed: x402,
     topUnifiedOpportunities: unified,
     next:
-      "Use this output to build the live/paper market-making worker around the highest reward-to-risk lane. PennyRail continues running unchanged in parallel.",
+      "Use corrected daily economics to select a small paper portfolio. PennyRail/x402 gaps continue in parallel. Do not fund trading until the paper model demonstrates a credible path to $1,000/day net.",
   };
 }
