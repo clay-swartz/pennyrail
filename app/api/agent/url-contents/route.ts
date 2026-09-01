@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { withX402 } from "@x402/next";
+import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
 import { penny, x402Server } from "@/lib/x402-server";
 
 export const dynamic = "force-dynamic";
@@ -350,21 +351,119 @@ const postHandler = async (
   }
 };
 
-const resource = penny(
-  "Retrieve clean text and optional highlights from known public URLs. Low-cost URL content extraction for agent research, RAG and page-reading workflows.",
-  "$0.001",
-  {
-    serviceName: "PennyRail URL Contents",
-    tags: [
-      "url-contents",
-      "web-extraction",
-      "scrape",
-      "research",
-      "rag",
-      "page-reader",
-    ],
+const description =
+  "Retrieve clean text and optional highlights from known public URLs. Low-cost URL content extraction for agent research, RAG and page-reading workflows.";
+
+const metadata = {
+  serviceName: "PennyRail URL Contents",
+  tags: [
+    "url-contents",
+    "web-extraction",
+    "scrape",
+    "research",
+    "rag",
+    "page-reader",
+  ],
+};
+
+const outputExample = {
+  ok: true,
+  priceUsd: 0.001,
+  service: "PennyRail URL Contents",
+  results: [
+    {
+      id: "https://example.com/",
+      url: "https://example.com/",
+      title: "Example Domain",
+      status: 200,
+      contentType: "text/html",
+      text: "Example Domain",
+      highlights: [],
+    },
+  ],
+};
+
+const getResource = {
+  ...penny(description, "$0.001", metadata),
+  extensions: {
+    ...declareDiscoveryExtension({
+      input: {
+        url: "https://example.com",
+        text: true,
+        highlights: true,
+      },
+      inputSchema: {
+        properties: {
+          url: {
+            type: "string",
+            description: "Public http/https URL to retrieve.",
+          },
+          text: {
+            type: "boolean",
+            description: "Return cleaned page text. Defaults to true.",
+          },
+          highlights: {
+            type: "boolean",
+            description: "Return up to five useful text highlights.",
+          },
+        },
+        required: ["url"],
+      },
+      output: {
+        example: outputExample,
+      },
+    }),
   },
+};
+
+const postResource = {
+  ...penny(description, "$0.001", metadata),
+  extensions: {
+    ...declareDiscoveryExtension({
+      input: {
+        urls: ["https://example.com"],
+        text: true,
+        highlights: true,
+      },
+      inputSchema: {
+        properties: {
+          urls: {
+            type: "array",
+            items: { type: "string" },
+            minItems: 1,
+            maxItems: 5,
+            description: "One to five public http/https URLs to retrieve.",
+          },
+          text: {
+            type: "boolean",
+            description: "Return cleaned page text. Defaults to true.",
+          },
+          highlights: {
+            type: "boolean",
+            description: "Return up to five useful text highlights per URL.",
+          },
+        },
+        required: ["urls"],
+      },
+      bodyType: "json",
+      output: {
+        example: outputExample,
+      },
+    }),
+  },
+};
+
+// Keying the static route makes the Bazaar catalog URL explicit.
+const routePath = "/api/agent/url-contents";
+
+export const GET = withX402(
+  getHandler,
+  { [routePath]: getResource },
+  x402Server,
 );
 
-export const GET = withX402(getHandler, resource, x402Server);
-export const POST = withX402(postHandler, resource, x402Server);
+export const POST = withX402(
+  postHandler,
+  { [routePath]: postResource },
+  x402Server,
+);
