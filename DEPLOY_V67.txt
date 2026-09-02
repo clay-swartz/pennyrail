@@ -1,0 +1,19 @@
+PennyRail v67 — Scale Gate + BatchRail
+
+BRANCH
+v67-scale-gate-batchrail
+
+COMMIT AS
+Launch PennyRail BatchRail and $1K/day Scale Gate
+
+PR TITLE
+Launch PennyRail BatchRail and $1K/day Scale Gate
+
+UPLOAD
+Upload the CONTENTS of pennyrail-v67-release/ to the repository root, preserving paths.
+
+AFTER VERCEL IS GREEN
+Tell ChatGPT: green
+
+Do not add Polymarket credentials or capital. Do not change Kalshi live settings.
+The existing OPENAI_API_KEY / CDP / x402 production configuration is reused by BatchRail.

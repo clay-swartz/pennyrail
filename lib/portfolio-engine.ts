@@ -14,6 +14,10 @@ import {
   type MoltJobsState,
 } from "@/lib/moltjobs";
 import { agentTaskRowsSha256 } from "@/lib/revenue-strike-data";
+import { polymarketUSConfig, scanPolymarketUSScaleOpportunity } from "@/lib/polymarket-us";
+import { runMoneyFoundry } from "@/lib/scale-foundry";
+import { BATCHRAIL_FULL_MAX_ITEMS, BATCHRAIL_FULL_PRICE_USD, batchRailEconomics } from "@/lib/batchrail";
+import { batchRailActivationState } from "@/lib/batchrail-activation";
 
 const NTFY = "https://ntfy.sh";
 const SCHEDULER = "https://aisenseapi.com/services/v1/webhook_schedule";
@@ -26,12 +30,31 @@ export type PortfolioExperiment = {
   id: string; lane: string; task: string; demandSource: string; buyerPriceUsd: number | null;
   upstreamCostUsd: number; platformFeesUsd: number; expectedMarginUsd: number | null;
   actualSpendUsd: number; actualRevenueUsd: number; actualNetUsd: number; outsidePayers: number;
-  repeats: number; status: "observed" | "shadow-test" | "live" | "scale" | "killed" | "blocked";
+  repeats: number; status: "observed" | "shadow-test" | "live" | "scale" | "background" | "killed" | "blocked";
   lastAction: string; nextAction: string;
 };
 
 type Spend = { at: string; usd: number; kind: "experiment" | "fulfillment"; experimentId: string };
 type SeenRevenue = { key: string; usd: number; payer: string | null };
+
+type ScaleState = {
+  checkedAt: string | null;
+  samples: number;
+  capacityHitSamples: number;
+  polymarket: {
+    ok: boolean; activeMarkets: number; activePeriods: number; totalDailyizedRewardPoolUsd: number;
+    marketsAtLeast1000: number; marketsAtLeast5000: number; largestDailyizedPoolUsd: number;
+    top: Array<{ marketSlug: string; programType: string; dailyPoolUsd: number; targetSize: number | null; capitalUsd: number | null; bestBid: number | null; bestAsk: number | null; midpoint: number | null; visibleGrossUpperUsdPerDay: number | null; poolToCapital: number | null }>;
+    live: boolean; configured: boolean; armed: boolean; maxCapitalUsd: number; error: string | null;
+  };
+  paper: {
+    startedAt: string; sameMarketMoveSamples: number; midpointAbsMoveSum: number; visibleGrossUpperSum: number; capitalSum: number;
+    avgMidpointAbsMove: number | null; avgVisibleGrossUpperUsdPerDay: number | null; avgIndicativeCapitalUsd: number | null;
+    screenPassed: boolean; liveCapitalReady: boolean; reason: string;
+    previousMarketSlug: string | null; previousMidpoint: number | null;
+  };
+  foundry: { primary: string; x402Services: number; x402Samples24h: number; medianPriceUsd: number | null; lanes: Array<{ id: string; status: string; measuredDemand: string }>; error: string | null };
+};
 
 type MoneyState = {
   actualOutside24hUsd: number; actualKnownCost24hUsd: number; actualNet24hUsd: number;
@@ -43,13 +66,14 @@ type MoneyState = {
 };
 
 export type PortfolioState = {
-  v: 66; startedAt: string; lastTickAt: string | null; lastSlot: number; nextSlot: number | null; tickCount: number;
+  v: 67; startedAt: string; lastTickAt: string | null; lastSlot: number; nextSlot: number | null; tickCount: number;
   scheduler: { ok: boolean; lastScheduledAt: string | null; lastError: string | null };
   money: MoneyState;
   budget: { dailyCapUsd: number; weeklyCapUsd: number; unprovenTestCapUsd: number; spentTodayUsd: number; spentWeekUsd: number; availableTodayUsd: number; availableWeekUsd: number; spend: Spend[] };
   demand: { checkedAt: string | null; baseBountyOpenApprox: number; baseBountyExamples: string[]; taskBountyOpen: number | null; taskBountyTop: Array<{ id: string; title: string; rewardUsd: number }>; radarPrimary: string | null; error: string | null };
   distribution: { gatefareConfigured: boolean; gatefareProducts: number; gatefareRevenueUsd: number; gatefarePublishedThisRun: number; agent402Healthy: boolean | null; lastAction: string; error: string | null };
   moltJobs: MoltJobsState;
+  scale: ScaleState;
   kalshiLive: { live: boolean; configured: boolean; armed: boolean; killSwitch: boolean; maxCapitalUsd: number };
   experiments: PortfolioExperiment[]; seenRevenue: SeenRevenue[]; errors: string[];
 };
@@ -77,16 +101,27 @@ function blankMoltJobs(): MoltJobsState {
   };
 }
 
+function blankScale(): ScaleState {
+  const p = polymarketUSConfig();
+  return {
+    checkedAt: null, samples: 0, capacityHitSamples: 0,
+    polymarket: { ok: false, activeMarkets: 0, activePeriods: 0, totalDailyizedRewardPoolUsd: 0, marketsAtLeast1000: 0, marketsAtLeast5000: 0, largestDailyizedPoolUsd: 0, top: [], live: p.live, configured: p.configured, armed: p.armed, maxCapitalUsd: p.maxCapitalUsd, error: null },
+    paper: { startedAt: nowIso(), sameMarketMoveSamples: 0, midpointAbsMoveSum: 0, visibleGrossUpperSum: 0, capitalSum: 0, avgMidpointAbsMove: null, avgVisibleGrossUpperUsdPerDay: null, avgIndicativeCapitalUsd: null, screenPassed: false, liveCapitalReady: false, reason: "Scale Gate is starting public Polymarket US incentive observations. No capital is authorized.", previousMarketSlug: null, previousMidpoint: null },
+    foundry: { primary: "starting", x402Services: 0, x402Samples24h: 0, medianPriceUsd: null, lanes: [], error: null },
+  };
+}
+
 function blank(): PortfolioState {
   const k = kalshiLiveConfig();
   return {
-    v: 66, startedAt: nowIso(), lastTickAt: null, lastSlot: 0, nextSlot: null, tickCount: 0,
+    v: 67, startedAt: nowIso(), lastTickAt: null, lastSlot: 0, nextSlot: null, tickCount: 0,
     scheduler: { ok: false, lastScheduledAt: null, lastError: null },
     money: { actualOutside24hUsd: 0, actualKnownCost24hUsd: 0, actualNet24hUsd: 0, allTimeOutsideUsd: 0, allTimeKnownCostUsd: 0, allTimeNetUsd: 0, outsidePayers24h: 0, outsidePayments24h: 0, firstDollarAt: null, firstDollarSource: null, progressTo1000Day: 0, x402Outside24hUsd: 0, moltJobsOutside24hUsd: 0, x402Payers24h: 0, x402Payments24h: 0 },
     budget: { dailyCapUsd: DAILY_SPEND_CAP, weeklyCapUsd: WEEKLY_SPEND_CAP, unprovenTestCapUsd: UNPROVEN_TEST_CAP, spentTodayUsd: 0, spentWeekUsd: 0, availableTodayUsd: DAILY_SPEND_CAP, availableWeekUsd: WEEKLY_SPEND_CAP, spend: [] },
     demand: { checkedAt: null, baseBountyOpenApprox: 0, baseBountyExamples: [], taskBountyOpen: null, taskBountyTop: [], radarPrimary: null, error: null },
     distribution: { gatefareConfigured: Boolean(process.env.GATEFARE_PAT?.trim()), gatefareProducts: 0, gatefareRevenueUsd: 0, gatefarePublishedThisRun: 0, agent402Healthy: null, lastAction: "Existing x402 distribution remains live; dead/unavailable storefronts are not a setup priority.", error: null },
     moltJobs: blankMoltJobs(),
+    scale: blankScale(),
     kalshiLive: { live: k.live, configured: k.configured, armed: k.armed, killSwitch: k.killSwitch, maxCapitalUsd: k.maxCapitalUsd },
     experiments: [], seenRevenue: [], errors: [],
   };
@@ -95,13 +130,14 @@ function blank(): PortfolioState {
 function migrateState(raw: any): PortfolioState {
   const base = blank();
   const state: PortfolioState = {
-    ...base, ...raw, v: 66,
+    ...base, ...raw, v: 67,
     scheduler: { ...base.scheduler, ...(raw?.scheduler || {}) },
     money: { ...base.money, ...(raw?.money || {}) },
     budget: { ...base.budget, ...(raw?.budget || {}), spend: Array.isArray(raw?.budget?.spend) ? raw.budget.spend : [] },
     demand: { ...base.demand, ...(raw?.demand || {}), baseBountyExamples: Array.isArray(raw?.demand?.baseBountyExamples) ? raw.demand.baseBountyExamples : [], taskBountyTop: Array.isArray(raw?.demand?.taskBountyTop) ? raw.demand.taskBountyTop : [] },
     distribution: { ...base.distribution, ...(raw?.distribution || {}) },
     moltJobs: { ...base.moltJobs, ...(raw?.moltJobs || {}), payouts: Array.isArray(raw?.moltJobs?.payouts) ? raw.moltJobs.payouts : [] },
+    scale: { ...base.scale, ...(raw?.scale || {}), polymarket: { ...base.scale.polymarket, ...(raw?.scale?.polymarket || {}), top: Array.isArray(raw?.scale?.polymarket?.top) ? raw.scale.polymarket.top : [] }, paper: { ...base.scale.paper, ...(raw?.scale?.paper || {}) }, foundry: { ...base.scale.foundry, ...(raw?.scale?.foundry || {}), lanes: Array.isArray(raw?.scale?.foundry?.lanes) ? raw.scale.foundry.lanes : [] } },
     kalshiLive: { ...base.kalshiLive, ...(raw?.kalshiLive || {}) },
     experiments: Array.isArray(raw?.experiments) ? raw.experiments : [],
     seenRevenue: Array.isArray(raw?.seenRevenue) ? raw.seenRevenue : [],
@@ -122,7 +158,7 @@ function decode(raw: string): PortfolioState | null {
     const exp = createHmac("sha256", secret()).update(`portfolio-state-v65:${body}`).digest("hex").slice(0, 40);
     if (!safeEqual(sig, exp)) return null;
     const parsed = JSON.parse(inflateRawSync(Buffer.from(body, "base64")).toString("utf8"));
-    return parsed?.v === 65 || parsed?.v === 66 ? migrateState(parsed) : null;
+    return parsed?.v === 65 || parsed?.v === 66 || parsed?.v === 67 ? migrateState(parsed) : null;
   } catch { return null; }
 }
 
@@ -136,11 +172,11 @@ export async function loadPortfolioState() {
 }
 
 async function save(state: PortfolioState) {
-  state.experiments = state.experiments.slice(0, 12); state.seenRevenue = state.seenRevenue.slice(-80); state.errors = state.errors.slice(0, 5); state.budget.spend = state.budget.spend.slice(-40); state.moltJobs.payouts = state.moltJobs.payouts.slice(-12);
+  state.experiments = state.experiments.slice(0, 12); state.seenRevenue = state.seenRevenue.slice(-80); state.errors = state.errors.slice(0, 5); state.budget.spend = state.budget.spend.slice(-40); state.moltJobs.payouts = state.moltJobs.payouts.slice(-12); state.scale.polymarket.top = state.scale.polymarket.top.slice(0, 3); state.scale.foundry.lanes = state.scale.foundry.lanes.slice(0, 3);
   let message = encode(state);
-  if (message.length > 3900) { state.demand.baseBountyExamples = state.demand.baseBountyExamples.slice(0, 2); state.demand.taskBountyTop = state.demand.taskBountyTop.slice(0, 3); state.experiments = state.experiments.slice(0, 8); state.moltJobs.payouts = state.moltJobs.payouts.slice(-6); message = encode(state); }
+  if (message.length > 3900) { state.demand.baseBountyExamples = state.demand.baseBountyExamples.slice(0, 2); state.demand.taskBountyTop = state.demand.taskBountyTop.slice(0, 3); state.experiments = state.experiments.slice(0, 8); state.moltJobs.payouts = state.moltJobs.payouts.slice(-6); state.scale.polymarket.top = state.scale.polymarket.top.slice(0, 2); state.scale.foundry.lanes = state.scale.foundry.lanes.slice(0, 2); message = encode(state); }
   if (message.length > 4000) throw new Error(`portfolio state exceeded ntfy limit (${message.length})`);
-  const r = await fetch(`${NTFY}/`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topic: topic(), title: "PennyRail portfolio v66 Revenue Strike", message, priority: 1 }), cache: "no-store", signal: AbortSignal.timeout(7000) });
+  const r = await fetch(`${NTFY}/`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topic: topic(), title: "PennyRail portfolio v67 Scale Gate + BatchRail", message, priority: 1 }), cache: "no-store", signal: AbortSignal.timeout(7000) });
   if (!r.ok) throw new Error(`ntfy portfolio write HTTP ${r.status}`);
 }
 
@@ -211,6 +247,16 @@ function ingestChainRevenue(state: PortfolioState, ledger: any) {
   recomputeMoney(state);
 }
 
+async function reconcileBatchRailSeedSpend(state: PortfolioState) {
+  try {
+    const seed = await batchRailActivationState();
+    if (seed?.status !== "seeded") return;
+    if (state.budget.spend.some(row => row.experimentId === "batchrail-bazaar-seed")) return;
+    state.budget.spend.push({ at: seed.at, usd: 0.05, kind: "experiment", experimentId: "batchrail-bazaar-seed" });
+    updateBudget(state);
+  } catch {}
+}
+
 async function runMoltJobs(state: PortfolioState) {
   const before = state.moltJobs;
   const after = await runMoltJobsRevenueStrike(origin(), before);
@@ -225,6 +271,81 @@ async function runMoltJobs(state: PortfolioState) {
   }
   recomputeMoney(state);
 }
+
+
+async function runScaleGate(state: PortfolioState) {
+  const scan = await scanPolymarketUSScaleOpportunity();
+  const foundry = await runMoneyFoundry(scan);
+  const previous = state.scale.paper;
+  const best = scan.top[0] || null;
+  state.scale.checkedAt = nowIso();
+  state.scale.samples += 1;
+  if (scan.marketsWithAtLeast1000DailyPool > 0) state.scale.capacityHitSamples += 1;
+  const cfg = scan.liveCapability;
+  state.scale.polymarket = {
+    ok: scan.ok, activeMarkets: scan.activeMarkets, activePeriods: scan.activePeriods,
+    totalDailyizedRewardPoolUsd: scan.totalDailyizedRewardPoolUsd, marketsAtLeast1000: scan.marketsWithAtLeast1000DailyPool,
+    marketsAtLeast5000: scan.marketsWithAtLeast5000DailyPool, largestDailyizedPoolUsd: scan.largestDailyizedPoolUsd,
+    top: scan.top.slice(0, 3).map(row => ({ marketSlug: row.marketSlug, programType: row.programType, dailyPoolUsd: row.dailyizedRewardPoolUsd, targetSize: row.targetSizeContracts, capitalUsd: row.indicativeFullTargetCapitalUsd, bestBid: row.bestBid, bestAsk: row.bestAsk, midpoint: row.midpoint, visibleGrossUpperUsdPerDay: row.visibleBookGrossRewardUpperUsdPerDay, poolToCapital: row.poolToTargetCapitalRatio })),
+    live: cfg.live, configured: cfg.configured, armed: cfg.armed, maxCapitalUsd: cfg.maxCapitalUsd, error: scan.error,
+  };
+
+  if (best) {
+    if (previous.previousMarketSlug === best.marketSlug && previous.previousMidpoint != null && best.midpoint != null) {
+      previous.sameMarketMoveSamples += 1;
+      previous.midpointAbsMoveSum += Math.abs(best.midpoint - previous.previousMidpoint);
+    }
+    if (best.visibleBookGrossRewardUpperUsdPerDay != null) previous.visibleGrossUpperSum += Math.max(0, best.visibleBookGrossRewardUpperUsdPerDay);
+    if (best.indicativeFullTargetCapitalUsd != null) previous.capitalSum += Math.max(0, best.indicativeFullTargetCapitalUsd);
+    previous.previousMarketSlug = best.marketSlug;
+    previous.previousMidpoint = best.midpoint;
+  }
+  previous.avgMidpointAbsMove = previous.sameMarketMoveSamples ? round(previous.midpointAbsMoveSum / previous.sameMarketMoveSamples, 6) : null;
+  previous.avgVisibleGrossUpperUsdPerDay = state.scale.samples ? round(previous.visibleGrossUpperSum / state.scale.samples, 2) : null;
+  previous.avgIndicativeCapitalUsd = state.scale.samples ? round(previous.capitalSum / state.scale.samples, 2) : null;
+  const capacityConsistency = state.scale.samples > 0 ? state.scale.capacityHitSamples / state.scale.samples : 0;
+  previous.screenPassed = state.scale.samples >= 3 && capacityConsistency >= 0.67 && num(previous.avgVisibleGrossUpperUsdPerDay) >= 1_000;
+  // Public books cannot reveal our future fills/adverse selection. Passing this screen
+  // earns an account/credential setup recommendation, never automatic capital authorization.
+  previous.liveCapitalReady = false;
+  previous.reason = !scan.ok
+    ? `Polymarket public scan failed: ${scan.error || "unknown error"}`
+    : !scan.marketsWithAtLeast1000DailyPool
+      ? "Current active incentive inventory does not clear the $1,000/day capacity gate."
+      : !previous.screenPassed
+        ? `External reward capacity clears $1K/day; PennyRail is accumulating repeated competition/capital observations (${state.scale.samples} samples).`
+        : "Scale screen passed on repeated public observations. Code is live-capable but capital remains disabled until account verification, credentials, an explicit capital cap, and human authorization.";
+
+  state.scale.foundry = {
+    primary: foundry.primary, x402Services: foundry.x402.servicesObserved, x402Samples24h: foundry.x402.samples24h, medianPriceUsd: foundry.x402.medianObservedPriceUsd,
+    lanes: foundry.lanes.slice(0, 3).map(row => ({ id: row.id, status: row.status, measuredDemand: row.measuredDemand })), error: foundry.error,
+  };
+
+  upsert(state, {
+    id: "polymarket-us-scale", lane: "external incentive pools", task: "Harvest exchange-paid liquidity/volume/fill incentives only when measured net economics clear the $1K/day gate",
+    demandSource: "Polymarket US official active incentive programs", buyerPriceUsd: null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: null, actualSpendUsd: 0, actualRevenueUsd: 0, actualNetUsd: 0, outsidePayers: 0, repeats: state.scale.samples,
+    status: scan.marketsWithAtLeast1000DailyPool > 0 ? "shadow-test" : "observed",
+    lastAction: `${scan.marketsWithAtLeast1000DailyPool} active reward periods currently have >=$1K/day pool capacity; largest dailyized pool ${moneyText(scan.largestDailyizedPoolUsd)}.`,
+    nextAction: previous.screenPassed ? "Scale screen passed; prepare account/KYC/API setup without funding until capital authorization." : "Keep paper-scanning reward pools, visible competition and capital efficiency every 10 minutes.",
+  });
+  const batchEconomics = batchRailEconomics();
+  const batchFloor = Math.max(0, num(batchEconomics.full.minimumGuardedContributionUsd));
+  const requiredBatches = Math.ceil(1000 / Math.max(0.000001, batchFloor));
+  upsert(state, {
+    id: "batchrail-bulk-inference", lane: "machine-commerce tollbooth", task: "Batch hundreds of short AI classification decisions behind one x402 settlement to undercut per-request payment overhead",
+    demandSource: "Existing high-volume paid AI gateway traffic + x402/Bazaar discovery", buyerPriceUsd: BATCHRAIL_FULL_PRICE_USD, upstreamCostUsd: batchEconomics.maxGuardedUpstreamUsd, platformFeesUsd: 0, expectedMarginUsd: batchFloor, actualSpendUsd: 0, actualRevenueUsd: 0, actualNetUsd: 0, outsidePayers: 0, repeats: 0, status: "live",
+    lastAction: `Live paid BatchRail route: up to ${BATCHRAIL_FULL_MAX_ITEMS.toLocaleString()} items for $${BATCHRAIL_FULL_PRICE_USD.toFixed(2)}; guarded minimum contribution $${batchFloor.toFixed(3)} per full batch.`,
+    nextAction: `Distribution is active; demand must prove ${requiredBatches.toLocaleString()} full batches/day or a higher-value expansion before this lane alone reaches the $1K/day floor.`
+  });
+  upsert(state, {
+    id: "money-foundry", lane: "new product foundry", task: "Create or route only products/platforms with a credible $1K+/day ceiling",
+    demandSource: "402radar + direct market evidence + public unmet-need research", buyerPriceUsd: null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: null, actualSpendUsd: 0, actualRevenueUsd: 0, actualNetUsd: 0, outsidePayers: 0, repeats: state.scale.samples, status: "live",
+    lastAction: `Primary scale lane: ${foundry.primary}. 402 scan observed ${foundry.x402.servicesObserved} services / ${foundry.x402.samples24h.toLocaleString()} 24h samples.`,
+    nextAction: "Reject low-ceiling chores; build transaction tollbooths or high-ticket products from measured gaps while external-pool lanes paper-test.",
+  });
+}
+
+function moneyText(value: unknown) { return `$${num(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`; }
 
 async function heavy(state: PortfolioState) {
   const [ledgerR, autopilotR, baseR, taskR, gfSyncR, gfRevenueR] = await Promise.allSettled([
@@ -246,10 +367,10 @@ async function heavy(state: PortfolioState) {
   if (gfRevenueR.status === "fulfilled") { const g: any = gfRevenueR.value; state.distribution.gatefareProducts = num(g.products); state.distribution.gatefareRevenueUsd = num(g.revenueUsd); }
   state.distribution.lastAction = "Existing x402/Agent402/Bazaar distribution remains live. Gatefare is dormant while its site is unavailable; no user setup is requested.";
 
-  upsert(state, { id: "moltjobs-live-5usdc", lane: "funded agent work", task: MOLTJOBS_TARGET_TITLE, demandSource: "MoltJobs protected on-chain USDC escrow", buyerPriceUsd: MOLTJOBS_TARGET_BUDGET_USDC, upstreamCostUsd: 0, platformFeesUsd: 0.25, expectedMarginUsd: 4.75, actualSpendUsd: 0, actualRevenueUsd: state.moltJobs.settledRevenueUsd, actualNetUsd: state.moltJobs.settledRevenueUsd, outsidePayers: state.moltJobs.settledRevenueUsd > 0 ? 1 : 0, repeats: state.moltJobs.payouts.length, status: state.moltJobs.settledRevenueUsd > 0 ? "scale" : state.moltJobs.configured ? "live" : "blocked", lastAction: state.moltJobs.lastAction, nextAction: state.moltJobs.nextAction });
-  upsert(state, { id: "existing-paid-distribution", lane: "multi-market distribution", task: "Keep existing paid PennyRail capabilities exposed on live x402 discovery surfaces", demandSource: "Agent402/Bazaar/x402", buyerPriceUsd: null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: null, actualSpendUsd: 0, actualRevenueUsd: state.money.x402Outside24hUsd, actualNetUsd: state.money.x402Outside24hUsd, outsidePayers: state.money.outsidePayers24h, repeats: state.money.outsidePayments24h, status: state.money.x402Outside24hUsd > 0 ? "scale" : "live", lastAction: state.distribution.lastAction, nextAction: "Keep measuring actual outside settlements while direct funded-work lanes execute." });
+  upsert(state, { id: "moltjobs-live-5usdc", lane: "funded agent work", task: MOLTJOBS_TARGET_TITLE, demandSource: "MoltJobs protected on-chain USDC escrow", buyerPriceUsd: MOLTJOBS_TARGET_BUDGET_USDC, upstreamCostUsd: 0, platformFeesUsd: 0.25, expectedMarginUsd: 4.75, actualSpendUsd: 0, actualRevenueUsd: state.moltJobs.settledRevenueUsd, actualNetUsd: state.moltJobs.settledRevenueUsd, outsidePayers: state.moltJobs.settledRevenueUsd > 0 ? 1 : 0, repeats: state.moltJobs.payouts.length, status: "background", lastAction: state.moltJobs.lastAction, nextAction: state.moltJobs.nextAction });
+  upsert(state, { id: "existing-paid-distribution", lane: "multi-market distribution", task: "Keep existing paid PennyRail capabilities exposed on live x402 discovery surfaces", demandSource: "Agent402/Bazaar/x402", buyerPriceUsd: null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: null, actualSpendUsd: 0, actualRevenueUsd: state.money.x402Outside24hUsd, actualNetUsd: state.money.x402Outside24hUsd, outsidePayers: state.money.outsidePayers24h, repeats: state.money.outsidePayments24h, status: state.money.x402Outside24hUsd > 0 ? "scale" : "live", lastAction: state.distribution.lastAction, nextAction: "Keep measuring actual outside settlements; only promote this lane if measured demand proves a $1K+/day ceiling." });
   const topJob = state.demand.taskBountyTop[0];
-  upsert(state, { id: "other-funded-agent-jobs", lane: "agent jobs/bounties", task: "Keep TaskBounty/BaseBounty listeners active for additional funded work", demandSource: "TaskBounty + BaseBounty", buyerPriceUsd: topJob?.rewardUsd ?? null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: topJob?.rewardUsd ?? null, actualSpendUsd: 0, actualRevenueUsd: 0, actualNetUsd: 0, outsidePayers: 0, repeats: 0, status: process.env.TASKBOUNTY_API_KEY?.trim() ? "live" : "observed", lastAction: `Observed ${state.demand.taskBountyOpen ?? 0} TaskBounty jobs and ~${state.demand.baseBountyOpenApprox} BaseBounty reward markers.`, nextAction: "Claim only work with a reliable automated deliverable and verifiable positive expected net." });
+  upsert(state, { id: "other-funded-agent-jobs", lane: "agent jobs/bounties", task: "Keep TaskBounty/BaseBounty listeners active for additional funded work", demandSource: "TaskBounty + BaseBounty", buyerPriceUsd: topJob?.rewardUsd ?? null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: topJob?.rewardUsd ?? null, actualSpendUsd: 0, actualRevenueUsd: 0, actualNetUsd: 0, outsidePayers: 0, repeats: 0, status: "background", lastAction: `Observed ${state.demand.taskBountyOpen ?? 0} TaskBounty jobs and ~${state.demand.baseBountyOpenApprox} BaseBounty reward markers.`, nextAction: "Claim only work with a reliable automated deliverable and verifiable positive expected net." });
   upsert(state, { id: "broker-spread", lane: "broker/reseller", task: "Use existing v36 broker supply only after paid demand arrives", demandSource: "Existing paid request + revenue engine", buyerPriceUsd: null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: null, actualSpendUsd: 0, actualRevenueUsd: 0, actualNetUsd: 0, outsidePayers: 0, repeats: 0, status: "live", lastAction: "Broker supply preserved; no speculative upstream purchase.", nextAction: "On buyer-authorized request, enforce known sale price, hard upstream max, and positive contribution margin." });
 }
 
@@ -265,9 +386,14 @@ export async function runPortfolioTick(slot = Math.floor(Date.now() / 1000), fal
   const state = persisted && fallback ? (persisted.lastSlot >= fallback.lastSlot ? persisted : fallback) : persisted || fallback || blank();
   if (state.lastSlot >= slot) return { ok: true, duplicate: true, state };
 
+  // Reconcile the one-time BatchRail discovery seed into the experiment ledger
+  // before recomputing NET. Internal wallet transfers remain excluded from revenue.
+  await reconcileBatchRailSeedSpend(state);
+
   // Direct funded work gets checked every 10-minute tick rather than waiting for
   // the hourly heavy scan. A bid costs no cash under MoltJobs' free bid credits.
   try { await runMoltJobs(state); } catch (e) { state.errors.unshift(`MoltJobs: ${e instanceof Error ? e.message : String(e)}`); }
+  try { await runScaleGate(state); } catch (e) { state.errors.unshift(`ScaleGate: ${e instanceof Error ? e.message : String(e)}`); }
 
   const shouldHeavy = state.tickCount === 0 || (state.tickCount + 1) % 6 === 0;
   if (shouldHeavy) { try { await heavy(state); } catch (e) { state.errors.unshift(e instanceof Error ? e.message : String(e)); } }
