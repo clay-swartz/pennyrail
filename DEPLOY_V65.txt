@@ -1,0 +1,9 @@
+Branch: v65-portfolio-engine-first-dollar
+Commit as: Build PennyRail Portfolio Engine for first-dollar execution
+PR title: Build PennyRail Portfolio Engine for first-dollar execution
+
+After Vercel is green, bootstrap both autonomous loops once by opening:
+https://pennyrail.vercel.app/api/autopilot/bootstrap
+
+Do not add Kalshi credentials or capital yet. KALSHI_LIVE remains false.
+The first optional earning credential after deploy is GATEFARE_PAT; add it only after the release is green.
