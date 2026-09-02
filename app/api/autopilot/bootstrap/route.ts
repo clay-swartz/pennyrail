@@ -8,6 +8,7 @@ import {
 import { scheduleBatchRailDistribution } from "@/lib/batchrail-distribution";
 import { ensurePermitRailScheduled } from "@/lib/permitrail";
 import { schedulePermitRailDistribution } from "@/lib/permitrail-distribution";
+import { ensurePermitRailAcquisitionScheduled } from "@/lib/permitrail-acquisition";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -73,10 +74,11 @@ export async function GET() {
   try {
     // Bootstrap is orchestration only. Run independent checkpoint reads in
     // parallel so a slow external state transport cannot starve the 60s request.
-    const [autopilotR, portfolioR, permitRailR] = await Promise.allSettled([
+    const [autopilotR, portfolioR, permitRailR, permitRailAcquisitionR] = await Promise.allSettled([
       resilientAutopilotBootstrap(),
       ensurePortfolioScheduled(),
       ensurePermitRailScheduled(origin()),
+      ensurePermitRailAcquisitionScheduled(origin()),
     ]);
 
     const autopilot: any = autopilotR.status === "fulfilled"
@@ -115,6 +117,17 @@ export async function GET() {
           hotSignals: Number((permitRailR.value as any)?.state?.hotSignals || 0),
         }
       : { ok: false, action: "SCHEDULE_FAILED", error: permitRailR.reason instanceof Error ? permitRailR.reason.message : String(permitRailR.reason) };
+
+    const permitRailAcquisition = permitRailAcquisitionR.status === "fulfilled"
+      ? {
+          ok: Boolean((permitRailAcquisitionR.value as any)?.ok),
+          action: (permitRailAcquisitionR.value as any)?.action || null,
+          lastRunAt: (permitRailAcquisitionR.value as any)?.state?.lastRunAt || null,
+          nextRunAt: (permitRailAcquisitionR.value as any)?.state?.nextRunAt || null,
+          prospectCount: Number((permitRailAcquisitionR.value as any)?.state?.prospectCount || 0),
+          senderLive: Boolean((permitRailAcquisitionR.value as any)?.state?.sender?.live),
+        }
+      : { ok: false, action: "SCHEDULE_FAILED", error: permitRailAcquisitionR.reason instanceof Error ? permitRailAcquisitionR.reason.message : String(permitRailAcquisitionR.reason) };
 
     const activationTask = async () => {
       const prior = await batchRailActivationState();
@@ -167,12 +180,12 @@ export async function GET() {
       : { ok: false, stage: "schedule-failed", error: permitRailDistributionR.reason instanceof Error ? permitRailDistributionR.reason.message : String(permitRailDistributionR.reason) };
 
     return NextResponse.json(
-      { ...autopilot, portfolio, permitRail, batchRailActivation, batchRailDistribution, permitRailDistribution },
+      { ...autopilot, portfolio, permitRail, permitRailAcquisition, batchRailActivation, batchRailDistribution, permitRailDistribution },
       { headers: { "cache-control": "no-store" } },
     );
   } catch (error) {
     return NextResponse.json(
-      { ok: false, mode: "PENNYRAIL_CONSOLIDATED_AUTOPILOT_V61_PORTFOLIO_V69", error: error instanceof Error ? error.message : String(error) },
+      { ok: false, mode: "PENNYRAIL_CONSOLIDATED_AUTOPILOT_V61_PORTFOLIO_V70", error: error instanceof Error ? error.message : String(error) },
       { status: 500, headers: { "cache-control": "no-store" } },
     );
   }

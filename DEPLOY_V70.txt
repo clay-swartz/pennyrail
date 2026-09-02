@@ -1,0 +1,20 @@
+PennyRail v70 — PermitRail Demand Engine
+
+Upload the contents of this release directory to repository root, preserving folders.
+
+Branch:
+v70-permitrail-demand-engine
+
+Commit as:
+Build PermitRail active customer acquisition engine
+
+PR title:
+Build PermitRail active customer acquisition engine
+
+No new environment variables are required for Vercel to build or for the public prospect radar/sample pages to run.
+
+DO NOT add Smartlead credentials before Vercel is green.
+DO NOT set PERMITRAIL_OUTREACH_LIVE=true until PennyRail reports the sender/account prerequisites are satisfied.
+
+After green, the first bootstrap call will schedule the acquisition scanner automatically. The public summary is:
+https://pennyrail.vercel.app/api/permitrail/acquisition/status
