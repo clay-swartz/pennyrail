@@ -7,7 +7,7 @@ import type { PermitRailCity, PermitRailTrade } from "@/lib/permitrail-core";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const handler = async (req: NextRequest) => {
+const handler = async (req: NextRequest): Promise<NextResponse<any>> => {
   try {
     const body = await req.json().catch(() => ({}));
     const feed = await buildPermitRailFeed({

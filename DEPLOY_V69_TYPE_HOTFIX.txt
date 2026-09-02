@@ -1,0 +1,13 @@
+PennyRail v69 PermitRail TypeScript hotfix
+
+Use the existing branch:
+v69-permitrail-revenue-engine
+
+Upload the CONTENTS of this directory to repository root, preserving folders.
+
+Commit as:
+Fix PermitRail x402 handler response typing
+
+Do not open a new PR. Existing PR #87 should update automatically.
+
+Fix: explicitly type both x402 handlers as Promise<NextResponse<any>> so success and error JSON response shapes satisfy @x402/next's generic wrapper.
