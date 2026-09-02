@@ -1,0 +1,20 @@
+PennyRail v71 — PermitRail Conversion UX + Money Now
+
+Upload the CONTENTS of pennyrail-v71-release/ to the repository root, preserving folders.
+
+Branch:
+v71-permitrail-conversion-money-now
+
+Commit as:
+Improve PermitRail conversion UX and add live money reconciliation
+
+PR title:
+Improve PermitRail conversion UX and add live money reconciliation
+
+No new environment variables are required.
+
+This release is layered on top of merged/green v70. It does not change the v70 acquisition credentials or enable outreach automatically.
+
+After production is green:
+- /permitrail should be light and customer-facing.
+- /money should show the Money Now panel at the top.
