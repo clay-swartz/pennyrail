@@ -38,20 +38,24 @@ type Spend = { at: string; usd: number; kind: "experiment" | "fulfillment"; expe
 type SeenRevenue = { key: string; usd: number; payer: string | null };
 
 type ScaleState = {
+  accountingVersion: 2;
   checkedAt: string | null;
   samples: number;
   capacityHitSamples: number;
   polymarket: {
-    ok: boolean; activeMarkets: number; activePeriods: number; totalDailyizedRewardPoolUsd: number;
-    marketsAtLeast1000: number; marketsAtLeast5000: number; largestDailyizedPoolUsd: number;
-    top: Array<{ marketSlug: string; programType: string; dailyPoolUsd: number; targetSize: number | null; capitalUsd: number | null; bestBid: number | null; bestAsk: number | null; midpoint: number | null; visibleGrossUpperUsdPerDay: number | null; poolToCapital: number | null }>;
+    ok: boolean; activeMarkets: number; activeProgramPeriods: number; totalDailyizedRewardPoolUsd: number;
+    programsAtLeast1000: number; programsAtLeast5000: number; largestDailyizedPoolUsd: number;
+    top: Array<{
+      programId: string; programType: string; period: string | null; dailyPoolUsd: number; marketCount: number;
+      targetSize: number | null; sampledMarkets: number; bestCapitalUsd: number | null; medianCapitalUsd: number | null;
+      grossPerSideUsdPerDay: number | null; sidesNeededFor1000: number | null; estimatedCapitalFor1000GrossUsd: number | null;
+    }>;
     live: boolean; configured: boolean; armed: boolean; maxCapitalUsd: number; error: string | null;
   };
   paper: {
-    startedAt: string; sameMarketMoveSamples: number; midpointAbsMoveSum: number; visibleGrossUpperSum: number; capitalSum: number;
-    avgMidpointAbsMove: number | null; avgVisibleGrossUpperUsdPerDay: number | null; avgIndicativeCapitalUsd: number | null;
-    screenPassed: boolean; liveCapitalReady: boolean; reason: string;
-    previousMarketSlug: string | null; previousMidpoint: number | null;
+    startedAt: string; repeatedBestProgramSamples: number; poolSum: number; capitalFor1000Sum: number; capitalObservationCount: number;
+    avgBestProgramPoolUsdPerDay: number | null; avgEstimatedCapitalFor1000GrossUsd: number | null;
+    screenPassed: boolean; liveCapitalReady: boolean; reason: string; previousProgramId: string | null;
   };
   foundry: { primary: string; x402Services: number; x402Samples24h: number; medianPriceUsd: number | null; lanes: Array<{ id: string; status: string; measuredDemand: string }>; error: string | null };
 };
@@ -66,7 +70,7 @@ type MoneyState = {
 };
 
 export type PortfolioState = {
-  v: 67; startedAt: string; lastTickAt: string | null; lastSlot: number; nextSlot: number | null; tickCount: number;
+  v: 68; startedAt: string; lastTickAt: string | null; lastSlot: number; nextSlot: number | null; tickCount: number;
   scheduler: { ok: boolean; lastScheduledAt: string | null; lastError: string | null };
   money: MoneyState;
   budget: { dailyCapUsd: number; weeklyCapUsd: number; unprovenTestCapUsd: number; spentTodayUsd: number; spentWeekUsd: number; availableTodayUsd: number; availableWeekUsd: number; spend: Spend[] };
@@ -104,9 +108,9 @@ function blankMoltJobs(): MoltJobsState {
 function blankScale(): ScaleState {
   const p = polymarketUSConfig();
   return {
-    checkedAt: null, samples: 0, capacityHitSamples: 0,
-    polymarket: { ok: false, activeMarkets: 0, activePeriods: 0, totalDailyizedRewardPoolUsd: 0, marketsAtLeast1000: 0, marketsAtLeast5000: 0, largestDailyizedPoolUsd: 0, top: [], live: p.live, configured: p.configured, armed: p.armed, maxCapitalUsd: p.maxCapitalUsd, error: null },
-    paper: { startedAt: nowIso(), sameMarketMoveSamples: 0, midpointAbsMoveSum: 0, visibleGrossUpperSum: 0, capitalSum: 0, avgMidpointAbsMove: null, avgVisibleGrossUpperUsdPerDay: null, avgIndicativeCapitalUsd: null, screenPassed: false, liveCapitalReady: false, reason: "Scale Gate is starting public Polymarket US incentive observations. No capital is authorized.", previousMarketSlug: null, previousMidpoint: null },
+    accountingVersion: 2, checkedAt: null, samples: 0, capacityHitSamples: 0,
+    polymarket: { ok: false, activeMarkets: 0, activeProgramPeriods: 0, totalDailyizedRewardPoolUsd: 0, programsAtLeast1000: 0, programsAtLeast5000: 0, largestDailyizedPoolUsd: 0, top: [], live: p.live, configured: p.configured, armed: p.armed, maxCapitalUsd: p.maxCapitalUsd, error: null },
+    paper: { startedAt: nowIso(), repeatedBestProgramSamples: 0, poolSum: 0, capitalFor1000Sum: 0, capitalObservationCount: 0, avgBestProgramPoolUsdPerDay: null, avgEstimatedCapitalFor1000GrossUsd: null, screenPassed: false, liveCapitalReady: false, reason: "Corrected v68 Polymarket shared-pool evidence window is starting. No capital is authorized.", previousProgramId: null },
     foundry: { primary: "starting", x402Services: 0, x402Samples24h: 0, medianPriceUsd: null, lanes: [], error: null },
   };
 }
@@ -114,7 +118,7 @@ function blankScale(): ScaleState {
 function blank(): PortfolioState {
   const k = kalshiLiveConfig();
   return {
-    v: 67, startedAt: nowIso(), lastTickAt: null, lastSlot: 0, nextSlot: null, tickCount: 0,
+    v: 68, startedAt: nowIso(), lastTickAt: null, lastSlot: 0, nextSlot: null, tickCount: 0,
     scheduler: { ok: false, lastScheduledAt: null, lastError: null },
     money: { actualOutside24hUsd: 0, actualKnownCost24hUsd: 0, actualNet24hUsd: 0, allTimeOutsideUsd: 0, allTimeKnownCostUsd: 0, allTimeNetUsd: 0, outsidePayers24h: 0, outsidePayments24h: 0, firstDollarAt: null, firstDollarSource: null, progressTo1000Day: 0, x402Outside24hUsd: 0, moltJobsOutside24hUsd: 0, x402Payers24h: 0, x402Payments24h: 0 },
     budget: { dailyCapUsd: DAILY_SPEND_CAP, weeklyCapUsd: WEEKLY_SPEND_CAP, unprovenTestCapUsd: UNPROVEN_TEST_CAP, spentTodayUsd: 0, spentWeekUsd: 0, availableTodayUsd: DAILY_SPEND_CAP, availableWeekUsd: WEEKLY_SPEND_CAP, spend: [] },
@@ -130,7 +134,7 @@ function blank(): PortfolioState {
 function migrateState(raw: any): PortfolioState {
   const base = blank();
   const state: PortfolioState = {
-    ...base, ...raw, v: 67,
+    ...base, ...raw, v: 68,
     scheduler: { ...base.scheduler, ...(raw?.scheduler || {}) },
     money: { ...base.money, ...(raw?.money || {}) },
     budget: { ...base.budget, ...(raw?.budget || {}), spend: Array.isArray(raw?.budget?.spend) ? raw.budget.spend : [] },
@@ -143,6 +147,13 @@ function migrateState(raw: any): PortfolioState {
     seenRevenue: Array.isArray(raw?.seenRevenue) ? raw.seenRevenue : [],
     errors: Array.isArray(raw?.errors) ? raw.errors : [],
   };
+  // v67 accidentally counted the same shared Polymarket reward pool once per
+  // market. Never carry those contaminated samples into the corrected v68
+  // program-level evidence window. Money/revenue/budget history is preserved.
+  if (raw?.scale?.accountingVersion !== 2) {
+    state.scale = blankScale();
+    state.errors.unshift("v68 reset invalid Polymarket per-market reward evidence; shared pools are now counted once per program/time period.");
+  }
   return state;
 }
 
@@ -158,7 +169,7 @@ function decode(raw: string): PortfolioState | null {
     const exp = createHmac("sha256", secret()).update(`portfolio-state-v65:${body}`).digest("hex").slice(0, 40);
     if (!safeEqual(sig, exp)) return null;
     const parsed = JSON.parse(inflateRawSync(Buffer.from(body, "base64")).toString("utf8"));
-    return parsed?.v === 65 || parsed?.v === 66 || parsed?.v === 67 ? migrateState(parsed) : null;
+    return parsed?.v === 65 || parsed?.v === 66 || parsed?.v === 67 || parsed?.v === 68 ? migrateState(parsed) : null;
   } catch { return null; }
 }
 
@@ -171,26 +182,35 @@ async function latestNtfyMessage(topicName: string) {
 
 function chunkTopic(index: number) { return `${topic()}-state-${index}`; }
 
+async function loadPortfolioStateOnce() {
+  const raw = await latestNtfyMessage(topic());
+  if (!raw) return null;
+  const manifest = raw.match(/^chunks:([0-9a-f]{12}):(\d+)$/);
+  if (!manifest) return decode(raw);
+  const id = manifest[1];
+  const count = Math.max(0, Math.min(4, Number(manifest[2])));
+  if (!count) return null;
+  const parts = await Promise.all(Array.from({ length: count }, async (_, index) => {
+    const partRaw = await latestNtfyMessage(chunkTopic(index));
+    if (!partRaw) return null;
+    try {
+      const row = JSON.parse(partRaw);
+      return row?.v === 1 && row?.id === id && row?.i === index && row?.n === count && typeof row?.data === "string" ? row.data : null;
+    } catch { return null; }
+  }));
+  if (parts.some(part => part == null)) return null;
+  return decode(parts.join(""));
+}
+
 export async function loadPortfolioState() {
-  try {
-    const raw = await latestNtfyMessage(topic());
-    if (!raw) return null;
-    const manifest = raw.match(/^chunks:([0-9a-f]{12}):(\d+)$/);
-    if (!manifest) return decode(raw);
-    const id = manifest[1];
-    const count = Math.max(0, Math.min(4, Number(manifest[2])));
-    if (!count) return null;
-    const parts = await Promise.all(Array.from({ length: count }, async (_, index) => {
-      const partRaw = await latestNtfyMessage(chunkTopic(index));
-      if (!partRaw) return null;
-      try {
-        const row = JSON.parse(partRaw);
-        return row?.v === 1 && row?.id === id && row?.i === index && row?.n === count && typeof row?.data === "string" ? row.data : null;
-      } catch { return null; }
-    }));
-    if (parts.some(part => part == null)) return null;
-    return decode(parts.join(""));
-  } catch { return null; }
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const state = await loadPortfolioStateOnce();
+      if (state) return state;
+    } catch {}
+    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250));
+  }
+  return null;
 }
 
 function compactText(value: unknown, max: number) {
@@ -246,7 +266,7 @@ async function save(state: PortfolioState) {
     message = encode(persisted);
   }
   if (message.length <= 3900) {
-    await writeNtfy(topic(), "PennyRail portfolio v67 Scale Gate + BatchRail", message);
+    await writeNtfy(topic(), "PennyRail portfolio v68 corrected Scale Gate + BatchRail", message);
     return;
   }
 
@@ -259,7 +279,7 @@ async function save(state: PortfolioState) {
   for (let index = 0; index < parts.length; index += 1) {
     await writeNtfy(chunkTopic(index), "PennyRail portfolio state chunk", JSON.stringify({ v: 1, id, i: index, n: parts.length, data: parts[index] }));
   }
-  await writeNtfy(topic(), "PennyRail portfolio v67 Scale Gate + BatchRail", `chunks:${id}:${parts.length}`);
+  await writeNtfy(topic(), "PennyRail portfolio v68 corrected Scale Gate + BatchRail", `chunks:${id}:${parts.length}`);
 }
 
 function updateBudget(state: PortfolioState) {
@@ -362,68 +382,142 @@ async function runScaleGate(state: PortfolioState) {
   const best = scan.top[0] || null;
   state.scale.checkedAt = nowIso();
   state.scale.samples += 1;
-  if (scan.marketsWithAtLeast1000DailyPool > 0) state.scale.capacityHitSamples += 1;
+  if (scan.programsWithAtLeast1000DailyPool > 0) state.scale.capacityHitSamples += 1;
   const cfg = scan.liveCapability;
+  state.scale.accountingVersion = 2;
   state.scale.polymarket = {
-    ok: scan.ok, activeMarkets: scan.activeMarkets, activePeriods: scan.activePeriods,
-    totalDailyizedRewardPoolUsd: scan.totalDailyizedRewardPoolUsd, marketsAtLeast1000: scan.marketsWithAtLeast1000DailyPool,
-    marketsAtLeast5000: scan.marketsWithAtLeast5000DailyPool, largestDailyizedPoolUsd: scan.largestDailyizedPoolUsd,
-    top: scan.top.slice(0, 3).map(row => ({ marketSlug: row.marketSlug, programType: row.programType, dailyPoolUsd: row.dailyizedRewardPoolUsd, targetSize: row.targetSizeContracts, capitalUsd: row.indicativeFullTargetCapitalUsd, bestBid: row.bestBid, bestAsk: row.bestAsk, midpoint: row.midpoint, visibleGrossUpperUsdPerDay: row.visibleBookGrossRewardUpperUsdPerDay, poolToCapital: row.poolToTargetCapitalRatio })),
-    live: cfg.live, configured: cfg.configured, armed: cfg.armed, maxCapitalUsd: cfg.maxCapitalUsd, error: scan.error,
+    ok: scan.ok,
+    activeMarkets: scan.activeMarkets,
+    activeProgramPeriods: scan.activeProgramPeriods,
+    totalDailyizedRewardPoolUsd: scan.totalDailyizedRewardPoolUsd,
+    programsAtLeast1000: scan.programsWithAtLeast1000DailyPool,
+    programsAtLeast5000: scan.programsWithAtLeast5000DailyPool,
+    largestDailyizedPoolUsd: scan.largestDailyizedPoolUsd,
+    top: scan.top.slice(0, 3).map(row => ({
+      programId: row.programId,
+      programType: row.programType,
+      period: row.period,
+      dailyPoolUsd: row.dailyizedRewardPoolUsd,
+      marketCount: row.marketCount,
+      targetSize: row.targetSizeContracts,
+      sampledMarkets: row.sampledMarkets,
+      bestCapitalUsd: row.bestCheapSideCapitalUsd,
+      medianCapitalUsd: row.medianCheapSideCapitalUsd,
+      grossPerSideUsdPerDay: row.sampledCompetitionGrossUsdPerSidePerDay,
+      sidesNeededFor1000: row.estimatedSidesNeededFor1000Gross,
+      estimatedCapitalFor1000GrossUsd: row.estimatedCapitalFor1000GrossUsd,
+    })),
+    live: cfg.live,
+    configured: cfg.configured,
+    armed: cfg.armed,
+    maxCapitalUsd: cfg.maxCapitalUsd,
+    error: scan.error,
   };
 
   if (best) {
-    if (previous.previousMarketSlug === best.marketSlug && previous.previousMidpoint != null && best.midpoint != null) {
-      previous.sameMarketMoveSamples += 1;
-      previous.midpointAbsMoveSum += Math.abs(best.midpoint - previous.previousMidpoint);
+    if (previous.previousProgramId === best.programId) previous.repeatedBestProgramSamples += 1;
+    previous.previousProgramId = best.programId;
+    previous.poolSum += Math.max(0, best.dailyizedRewardPoolUsd);
+    if (best.estimatedCapitalFor1000GrossUsd != null) {
+      previous.capitalFor1000Sum += Math.max(0, best.estimatedCapitalFor1000GrossUsd);
+      previous.capitalObservationCount += 1;
     }
-    if (best.visibleBookGrossRewardUpperUsdPerDay != null) previous.visibleGrossUpperSum += Math.max(0, best.visibleBookGrossRewardUpperUsdPerDay);
-    if (best.indicativeFullTargetCapitalUsd != null) previous.capitalSum += Math.max(0, best.indicativeFullTargetCapitalUsd);
-    previous.previousMarketSlug = best.marketSlug;
-    previous.previousMidpoint = best.midpoint;
   }
-  previous.avgMidpointAbsMove = previous.sameMarketMoveSamples ? round(previous.midpointAbsMoveSum / previous.sameMarketMoveSamples, 6) : null;
-  previous.avgVisibleGrossUpperUsdPerDay = state.scale.samples ? round(previous.visibleGrossUpperSum / state.scale.samples, 2) : null;
-  previous.avgIndicativeCapitalUsd = state.scale.samples ? round(previous.capitalSum / state.scale.samples, 2) : null;
-  const capacityConsistency = state.scale.samples > 0 ? state.scale.capacityHitSamples / state.scale.samples : 0;
-  previous.screenPassed = state.scale.samples >= 3 && capacityConsistency >= 0.67 && num(previous.avgVisibleGrossUpperUsdPerDay) >= 1_000;
-  // Public books cannot reveal our future fills/adverse selection. Passing this screen
-  // earns an account/credential setup recommendation, never automatic capital authorization.
+  previous.avgBestProgramPoolUsdPerDay = state.scale.samples
+    ? round(previous.poolSum / state.scale.samples, 2)
+    : null;
+  previous.avgEstimatedCapitalFor1000GrossUsd = previous.capitalObservationCount > 0 && previous.capitalFor1000Sum > 0
+    ? round(previous.capitalFor1000Sum / previous.capitalObservationCount, 2)
+    : null;
+
+  const capacityConsistency = state.scale.samples > 0
+    ? state.scale.capacityHitSamples / state.scale.samples
+    : 0;
+  const correctedCapital = num(previous.avgEstimatedCapitalFor1000GrossUsd);
+  previous.screenPassed =
+    state.scale.samples >= 3 &&
+    capacityConsistency >= 0.67 &&
+    num(previous.avgBestProgramPoolUsdPerDay) >= 1_000 &&
+    correctedCapital > 0 &&
+    correctedCapital <= 10_000;
   previous.liveCapitalReady = false;
   previous.reason = !scan.ok
-    ? `Polymarket public scan failed: ${scan.error || "unknown error"}`
-    : !scan.marketsWithAtLeast1000DailyPool
-      ? "Current active incentive inventory does not clear the $1,000/day capacity gate."
+    ? `Polymarket corrected public scan failed: ${scan.error || "unknown error"}`
+    : !scan.programsWithAtLeast1000DailyPool
+      ? "Corrected shared incentive inventory does not currently clear the $1,000/day pool-capacity gate."
       : !previous.screenPassed
-        ? `External reward capacity clears $1K/day; PennyRail is accumulating repeated competition/capital observations (${state.scale.samples} samples).`
-        : "Scale screen passed on repeated public observations. Code is live-capable but capital remains disabled until account verification, credentials, an explicit capital cap, and human authorization.";
+        ? `Corrected shared-pool capacity clears $1K/day; PennyRail is accumulating repeated program-level competition/capital observations (${state.scale.samples} samples).`
+        : `Corrected Scale Gate passed on repeated shared-pool observations with sampled capital screening around ${moneyText(correctedCapital)} for $1K gross/day. This is still not expected NET; fills, markout and actual reward share must be paper-measured before capital.`;
 
   state.scale.foundry = {
-    primary: foundry.primary, x402Services: foundry.x402.servicesObserved, x402Samples24h: foundry.x402.samples24h, medianPriceUsd: foundry.x402.medianObservedPriceUsd,
-    lanes: foundry.lanes.slice(0, 3).map(row => ({ id: row.id, status: row.status, measuredDemand: row.measuredDemand })), error: foundry.error,
+    primary: foundry.primary,
+    x402Services: foundry.x402.servicesObserved,
+    x402Samples24h: foundry.x402.samples24h,
+    medianPriceUsd: foundry.x402.medianObservedPriceUsd,
+    lanes: foundry.lanes.slice(0, 3).map(row => ({ id: row.id, status: row.status, measuredDemand: row.measuredDemand })),
+    error: foundry.error,
   };
 
   upsert(state, {
-    id: "polymarket-us-scale", lane: "external incentive pools", task: "Harvest exchange-paid liquidity/volume/fill incentives only when measured net economics clear the $1K/day gate",
-    demandSource: "Polymarket US official active incentive programs", buyerPriceUsd: null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: null, actualSpendUsd: 0, actualRevenueUsd: 0, actualNetUsd: 0, outsidePayers: 0, repeats: state.scale.samples,
-    status: scan.marketsWithAtLeast1000DailyPool > 0 ? "shadow-test" : "observed",
-    lastAction: `${scan.marketsWithAtLeast1000DailyPool} active reward periods currently have >=$1K/day pool capacity; largest dailyized pool ${moneyText(scan.largestDailyizedPoolUsd)}.`,
-    nextAction: previous.screenPassed ? "Scale screen passed; prepare account/KYC/API setup without funding until capital authorization." : "Keep paper-scanning reward pools, visible competition and capital efficiency every 10 minutes.",
+    id: "polymarket-us-scale",
+    lane: "external incentive pools",
+    task: "Harvest exchange-paid liquidity/volume/fill incentives only when corrected program-level economics can plausibly clear the $1K/day gate",
+    demandSource: "Polymarket US official active incentive programs",
+    buyerPriceUsd: null,
+    upstreamCostUsd: 0,
+    platformFeesUsd: 0,
+    expectedMarginUsd: null,
+    actualSpendUsd: 0,
+    actualRevenueUsd: 0,
+    actualNetUsd: 0,
+    outsidePayers: 0,
+    repeats: state.scale.samples,
+    status: scan.programsWithAtLeast1000DailyPool > 0 ? "shadow-test" : "observed",
+    lastAction: `${scan.programsWithAtLeast1000DailyPool} unique shared program/time-period pools currently have >=$1K/day capacity; largest corrected dailyized pool ${moneyText(scan.largestDailyizedPoolUsd)}.`,
+    nextAction: previous.screenPassed
+      ? "Corrected scale screen passed; next step is account/KYC/API readiness only. Capital remains disabled until paper markout/fill evidence is added and explicit authorization is given."
+      : "Keep paper-scanning corrected shared pools, sampled best-level competition and capital efficiency every 10 minutes.",
   });
+
   const batchEconomics = batchRailEconomics();
   const batchFloor = Math.max(0, num(batchEconomics.full.minimumGuardedContributionUsd));
   const requiredBatches = Math.ceil(1000 / Math.max(0.000001, batchFloor));
   upsert(state, {
-    id: "batchrail-bulk-inference", lane: "machine-commerce tollbooth", task: "Batch hundreds of short AI classification decisions behind one x402 settlement to undercut per-request payment overhead",
-    demandSource: "Existing high-volume paid AI gateway traffic + x402/Bazaar discovery", buyerPriceUsd: BATCHRAIL_FULL_PRICE_USD, upstreamCostUsd: batchEconomics.maxGuardedUpstreamUsd, platformFeesUsd: 0, expectedMarginUsd: batchFloor, actualSpendUsd: 0, actualRevenueUsd: 0, actualNetUsd: 0, outsidePayers: 0, repeats: 0, status: "live",
+    id: "batchrail-bulk-inference",
+    lane: "machine-commerce tollbooth",
+    task: "Batch hundreds of short AI classification decisions behind one x402 settlement to undercut per-request payment overhead",
+    demandSource: "Direct x402 settlement + Coinbase Bazaar discovery",
+    buyerPriceUsd: BATCHRAIL_FULL_PRICE_USD,
+    upstreamCostUsd: batchEconomics.maxGuardedUpstreamUsd,
+    platformFeesUsd: 0,
+    expectedMarginUsd: batchFloor,
+    actualSpendUsd: 0,
+    actualRevenueUsd: 0,
+    actualNetUsd: 0,
+    outsidePayers: 0,
+    repeats: 0,
+    status: "live",
     lastAction: `Live paid BatchRail route: up to ${BATCHRAIL_FULL_MAX_ITEMS.toLocaleString()} items for $${BATCHRAIL_FULL_PRICE_USD.toFixed(2)}; guarded minimum contribution $${batchFloor.toFixed(3)} per full batch.`,
-    nextAction: `Distribution is active; demand must prove ${requiredBatches.toLocaleString()} full batches/day or a higher-value expansion before this lane alone reaches the $1K/day floor.`
+    nextAction: `Complete the one-time Bazaar settlement seed and measure outside demand; ${requiredBatches.toLocaleString()} full batches/day would reach the $1K/day guarded contribution floor.`,
   });
+
   upsert(state, {
-    id: "money-foundry", lane: "new product foundry", task: "Create or route only products/platforms with a credible $1K+/day ceiling",
-    demandSource: "402radar + direct market evidence + public unmet-need research", buyerPriceUsd: null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: null, actualSpendUsd: 0, actualRevenueUsd: 0, actualNetUsd: 0, outsidePayers: 0, repeats: state.scale.samples, status: "live",
-    lastAction: `Primary scale lane: ${foundry.primary}. 402 scan observed ${foundry.x402.servicesObserved} services / ${foundry.x402.samples24h.toLocaleString()} 24h samples.`,
-    nextAction: "Reject low-ceiling chores; build transaction tollbooths or high-ticket products from measured gaps while external-pool lanes paper-test.",
+    id: "money-foundry",
+    lane: "new product foundry",
+    task: "Create or route only products/platforms with a credible $1K+/day ceiling",
+    demandSource: "Direct settled buyer data + official external money pools + public unmet-need research",
+    buyerPriceUsd: null,
+    upstreamCostUsd: 0,
+    platformFeesUsd: 0,
+    expectedMarginUsd: null,
+    actualSpendUsd: 0,
+    actualRevenueUsd: 0,
+    actualNetUsd: 0,
+    outsidePayers: 0,
+    repeats: state.scale.samples,
+    status: "live",
+    lastAction: `Primary scale lane: ${foundry.primary}. Suspended third-party 402radar is no longer used as a demand dependency.`,
+    nextAction: "Reject low-ceiling chores; build transaction tollbooths or high-ticket products from direct evidence while corrected external-pool lanes paper-test.",
   });
 }
 
@@ -461,6 +555,37 @@ async function scheduleNext(slot: number, state: PortfolioState) {
   const url = `${origin()}/api/portfolio/tick?slot=${slot}&token=${encodeURIComponent(tokenForSlot(slot))}`;
   const r = await fetch(SCHEDULER, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url, delay_seconds: delay, payload: { state: encode(state) } }), cache: "no-store", signal: AbortSignal.timeout(8000) });
   if (!r.ok) throw new Error(`portfolio scheduler HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+}
+
+export async function ensurePortfolioScheduled() {
+  const state = await loadPortfolioState();
+  if (!state) {
+    return {
+      ok: false,
+      action: "STATE_READ_DEFERRED",
+      lastTickAt: null,
+      nextSlot: null,
+      state: null,
+      error: "Portfolio checkpoint could not be read reliably. Existing scheduled callbacks carry fallback state, so PennyRail deferred rather than overwrite economic history with a blank state.",
+    };
+  }
+  const fresh = Boolean(state.lastTickAt) && Date.now() - Date.parse(String(state.lastTickAt)) < 25 * 60_000;
+  if (fresh && state.scheduler.ok && state.nextSlot) {
+    return { ok: true, action: "ALREADY_RUNNING", lastTickAt: state.lastTickAt, nextSlot: state.nextSlot, state };
+  }
+  const slot = Math.floor(Date.now() / 1000) + 60;
+  state.nextSlot = slot;
+  try {
+    await scheduleNext(slot, state);
+    state.scheduler = { ok: true, lastScheduledAt: nowIso(), lastError: null };
+    await save(state);
+    return { ok: true, action: "SCHEDULED", lastTickAt: state.lastTickAt, nextSlot: slot, state };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    state.scheduler = { ok: false, lastScheduledAt: state.scheduler.lastScheduledAt, lastError: message };
+    try { await save(state); } catch {}
+    return { ok: false, action: "SCHEDULE_FAILED", error: message, state };
+  }
 }
 
 export async function runPortfolioTick(slot = Math.floor(Date.now() / 1000), fallbackRaw?: string | null) {
