@@ -1,0 +1,11 @@
+PennyRail v67.1 production blocker hotfix
+
+Fixes:
+- Prevent Portfolio Scale Gate persistence from exceeding ntfy's message limit by using level-9 compression and compacting only the durable checkpoint copy (runtime/dashboard state remains full).
+- Diagnoses the BatchRail x402 seed before spending: verifies Payment-Required exists and reads the internal CDP buyer's Base USDC balance.
+- If the buyer lacks $0.05 USDC, returns funding-required with the exact balance/address and makes no payment attempt.
+- If balance is sufficient but settlement still returns 402, returns both preflight and retry payment-header diagnostics.
+
+Branch: v67-scale-gate-batchrail
+Commit as: Fix v67 live activation and Scale Gate persistence
+PR title: Fix v67 live activation and Scale Gate persistence

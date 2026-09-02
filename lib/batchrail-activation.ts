@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { BATCHRAIL_TRIAL_PATH, BATCHRAIL_TRIAL_PRICE_USD } from "@/lib/batchrail";
-import { paidFetchBaseUsdcCapped, radarBuyerAddress } from "@/lib/radar-buyer";
+import { buyerAccount, paidFetchBaseUsdcCapped, radarBuyerAddress } from "@/lib/radar-buyer";
 import { mode, payTo } from "@/lib/x402-server";
 
 const NTFY = "https://ntfy.sh";
+const BASE_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bdA02913";
 
 type SeedState = {
   v: 1;
@@ -56,6 +57,33 @@ function safeSeller() {
   return mode === "mainnet" && /^0x[0-9a-fA-F]{40}$/.test(String(payTo || "")) && !/^0x0{40}$/i.test(String(payTo || ""));
 }
 
+async function buyerBaseUsdcBalanceUsd(): Promise<number> {
+  const account = await buyerAccount();
+  const page = await account.listTokenBalances({ network: "base" });
+  const balances = Array.isArray(page?.balances) ? page.balances : [];
+  const row = balances.find((item: any) => {
+    const contract = String(item?.token?.contractAddress || "").toLowerCase();
+    const symbol = String(item?.token?.symbol || "").toUpperCase();
+    return contract === BASE_USDC || symbol === "USDC";
+  });
+  if (!row) return 0;
+  const raw = String(row?.amount?.amount ?? "0");
+  const decimals = Math.max(0, Math.min(18, Number(row?.amount?.decimals ?? 6)));
+  let atomic = 0n;
+  try { atomic = BigInt(raw); } catch { return 0; }
+  return Number(atomic) / (10 ** decimals);
+}
+
+function paymentDiagnostics(response: Response) {
+  const required = response.headers.get("payment-required") || response.headers.get("x-payment-required");
+  const settled = response.headers.get("payment-response") || response.headers.get("x-payment-response");
+  return {
+    paymentRequiredPresent: Boolean(required),
+    paymentRequiredPreview: required ? required.slice(0, 600) : null,
+    paymentResponsePresent: Boolean(settled),
+  };
+}
+
 export async function activateBatchRailDiscovery(publicOrigin: string) {
   const origin = cleanOrigin(publicOrigin);
   const url = `${origin}${BATCHRAIL_TRIAL_PATH}`;
@@ -91,9 +119,25 @@ export async function activateBatchRailDiscovery(publicOrigin: string) {
     // actually protected by x402. This is a direct distribution activation,
     // not a synthetic revenue event; the ledger excludes the internal buyer.
     const probe = await fetch(url, { ...requestInit, signal: AbortSignal.timeout(12_000) });
+    const probeDiag = paymentDiagnostics(probe);
     if (probe.status !== 402) {
       const raw = await probe.text();
-      return { ok: false, activated: false, spentUsd: 0, stage: "preflight", buyerAddress: buyer, status: probe.status, error: `Expected x402 HTTP 402 before seed settlement; got ${probe.status}: ${raw.slice(0, 180)}` };
+      return { ok: false, activated: false, spentUsd: 0, stage: "preflight", buyerAddress: buyer, status: probe.status, ...probeDiag, error: `Expected x402 HTTP 402 before seed settlement; got ${probe.status}: ${raw.slice(0, 180)}` };
+    }
+    if (!probeDiag.paymentRequiredPresent) {
+      return { ok: false, activated: false, spentUsd: 0, stage: "challenge", buyerAddress: buyer, status: probe.status, ...probeDiag, error: "BatchRail returned HTTP 402 without a Payment-Required header, so an x402 client cannot construct the settlement." };
+    }
+
+    let buyerUsdcBalanceUsd: number | null = null;
+    let buyerBalanceError: string | null = null;
+    try { buyerUsdcBalanceUsd = await buyerBaseUsdcBalanceUsd(); }
+    catch (error) { buyerBalanceError = error instanceof Error ? error.message : String(error); }
+    if (buyerUsdcBalanceUsd != null && buyerUsdcBalanceUsd + 1e-9 < BATCHRAIL_TRIAL_PRICE_USD) {
+      return {
+        ok: false, activated: false, spentUsd: 0, stage: "funding-required", buyerAddress: buyer,
+        buyerUsdcBalanceUsd, requiredUsdcUsd: BATCHRAIL_TRIAL_PRICE_USD, buyerBalanceError, ...probeDiag,
+        error: `Internal Radar buyer has $${buyerUsdcBalanceUsd.toFixed(6)} USDC on Base; $${BATCHRAIL_TRIAL_PRICE_USD.toFixed(2)} is required for the one-time discovery seed.`,
+      };
     }
 
     await saveSeedState({ v: 1, status: "attempted", at: new Date().toISOString(), url, error: null, paymentResponsePresent: false });
@@ -102,11 +146,16 @@ export async function activateBatchRailDiscovery(publicOrigin: string) {
     const raw = await paid.text();
     let body: any = null;
     try { body = raw ? JSON.parse(raw) : null; } catch { body = raw || null; }
-    const paymentResponsePresent = Boolean(paid.headers.get("payment-response") || paid.headers.get("x-payment-response"));
+    const paidDiag = paymentDiagnostics(paid);
+    const paymentResponsePresent = paidDiag.paymentResponsePresent;
     if (!paid.ok) {
       const state: SeedState = { v: 1, status: "failed", at: new Date().toISOString(), url, error: `HTTP ${paid.status}: ${raw.slice(0, 220)}`, paymentResponsePresent };
       await saveSeedState(state);
-      return { ok: false, activated: false, spentUsd: paymentResponsePresent ? BATCHRAIL_TRIAL_PRICE_USD : 0, stage: "paid-call", buyerAddress: buyer, status: paid.status, response: body, error: state.error };
+      return {
+        ok: false, activated: false, spentUsd: paymentResponsePresent ? BATCHRAIL_TRIAL_PRICE_USD : 0,
+        stage: "paid-call", buyerAddress: buyer, buyerUsdcBalanceUsd, buyerBalanceError,
+        status: paid.status, response: body, probe: probeDiag, retry: paidDiag, error: state.error,
+      };
     }
 
     const state: SeedState = { v: 1, status: "seeded", at: new Date().toISOString(), url, error: null, paymentResponsePresent };
@@ -118,6 +167,7 @@ export async function activateBatchRailDiscovery(publicOrigin: string) {
       spentUsd: BATCHRAIL_TRIAL_PRICE_USD,
       stage: "settled-discovery-seed",
       buyerAddress: buyer,
+      buyerUsdcBalanceUsd,
       paymentResponsePresent,
       resultCount: Number(body?.count || 0),
       note: "One internal $0.05 settlement activated the Bazaar-discovery route. It is excluded from outside revenue and will not repeat after the seed marker persists.",

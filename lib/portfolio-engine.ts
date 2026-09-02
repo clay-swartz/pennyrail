@@ -147,7 +147,7 @@ function migrateState(raw: any): PortfolioState {
 }
 
 function encode(state: PortfolioState) {
-  const body = deflateRawSync(Buffer.from(JSON.stringify(state))).toString("base64");
+  const body = deflateRawSync(Buffer.from(JSON.stringify(state)), { level: 9 }).toString("base64");
   const sig = createHmac("sha256", secret()).update(`portfolio-state-v65:${body}`).digest("hex").slice(0, 40);
   return `${body}.${sig}`;
 }
@@ -162,22 +162,104 @@ function decode(raw: string): PortfolioState | null {
   } catch { return null; }
 }
 
+async function latestNtfyMessage(topicName: string) {
+  const r = await fetch(`${NTFY}/${encodeURIComponent(topicName)}/json?poll=1&since=latest`, { headers: { accept: "application/x-ndjson,application/json" }, cache: "no-store", signal: AbortSignal.timeout(7000) });
+  if (!r.ok) return null;
+  const rows = (await r.text()).split(/\r?\n/).map(x => { try { return JSON.parse(x); } catch { return null; } }).filter(x => x?.event === "message" && typeof x?.message === "string");
+  return rows.length ? String(rows[rows.length - 1].message) : null;
+}
+
+function chunkTopic(index: number) { return `${topic()}-state-${index}`; }
+
 export async function loadPortfolioState() {
   try {
-    const r = await fetch(`${NTFY}/${encodeURIComponent(topic())}/json?poll=1&since=latest`, { headers: { accept: "application/x-ndjson,application/json" }, cache: "no-store", signal: AbortSignal.timeout(7000) });
-    if (!r.ok) return null;
-    const rows = (await r.text()).split(/\r?\n/).map(x => { try { return JSON.parse(x); } catch { return null; } }).filter(x => x?.event === "message" && typeof x?.message === "string");
-    return rows.length ? decode(rows[rows.length - 1].message) : null;
+    const raw = await latestNtfyMessage(topic());
+    if (!raw) return null;
+    const manifest = raw.match(/^chunks:([0-9a-f]{12}):(\d+)$/);
+    if (!manifest) return decode(raw);
+    const id = manifest[1];
+    const count = Math.max(0, Math.min(4, Number(manifest[2])));
+    if (!count) return null;
+    const parts = await Promise.all(Array.from({ length: count }, async (_, index) => {
+      const partRaw = await latestNtfyMessage(chunkTopic(index));
+      if (!partRaw) return null;
+      try {
+        const row = JSON.parse(partRaw);
+        return row?.v === 1 && row?.id === id && row?.i === index && row?.n === count && typeof row?.data === "string" ? row.data : null;
+      } catch { return null; }
+    }));
+    if (parts.some(part => part == null)) return null;
+    return decode(parts.join(""));
   } catch { return null; }
 }
 
-async function save(state: PortfolioState) {
-  state.experiments = state.experiments.slice(0, 12); state.seenRevenue = state.seenRevenue.slice(-80); state.errors = state.errors.slice(0, 5); state.budget.spend = state.budget.spend.slice(-40); state.moltJobs.payouts = state.moltJobs.payouts.slice(-12); state.scale.polymarket.top = state.scale.polymarket.top.slice(0, 3); state.scale.foundry.lanes = state.scale.foundry.lanes.slice(0, 3);
-  let message = encode(state);
-  if (message.length > 3900) { state.demand.baseBountyExamples = state.demand.baseBountyExamples.slice(0, 2); state.demand.taskBountyTop = state.demand.taskBountyTop.slice(0, 3); state.experiments = state.experiments.slice(0, 8); state.moltJobs.payouts = state.moltJobs.payouts.slice(-6); state.scale.polymarket.top = state.scale.polymarket.top.slice(0, 2); state.scale.foundry.lanes = state.scale.foundry.lanes.slice(0, 2); message = encode(state); }
-  if (message.length > 4000) throw new Error(`portfolio state exceeded ntfy limit (${message.length})`);
-  const r = await fetch(`${NTFY}/`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topic: topic(), title: "PennyRail portfolio v67 Scale Gate + BatchRail", message, priority: 1 }), cache: "no-store", signal: AbortSignal.timeout(7000) });
+function compactText(value: unknown, max: number) {
+  const s = String(value ?? "");
+  return s.length <= max ? s : `${s.slice(0, Math.max(0, max - 1))}…`;
+}
+
+function compactForPersistence(state: PortfolioState, aggressive = false): PortfolioState {
+  // ntfy is only the durable checkpoint, not the dashboard payload. Keep the
+  // economic/accounting aggregates intact and trim verbose/reconstructable text.
+  const saved = JSON.parse(JSON.stringify(state)) as PortfolioState;
+  saved.seenRevenue = saved.seenRevenue.slice(aggressive ? -20 : -50);
+  saved.errors = saved.errors.slice(0, aggressive ? 2 : 4).map(x => compactText(x, 220));
+  saved.budget.spend = saved.budget.spend.slice(aggressive ? -16 : -28);
+  saved.moltJobs.payouts = saved.moltJobs.payouts.slice(aggressive ? -4 : -8);
+  saved.demand.baseBountyExamples = saved.demand.baseBountyExamples.slice(0, aggressive ? 1 : 2).map(x => compactText(x, 100));
+  saved.demand.taskBountyTop = saved.demand.taskBountyTop.slice(0, aggressive ? 1 : 2);
+  saved.scale.polymarket.top = saved.scale.polymarket.top.slice(0, aggressive ? 1 : 2);
+  saved.scale.foundry.lanes = saved.scale.foundry.lanes.slice(0, aggressive ? 1 : 2).map(row => ({
+    ...row,
+    measuredDemand: compactText(row.measuredDemand, aggressive ? 100 : 160),
+  }));
+  saved.experiments = saved.experiments.slice(0, aggressive ? 5 : 8).map(row => ({
+    ...row,
+    task: compactText(row.task, aggressive ? 90 : 140),
+    demandSource: compactText(row.demandSource, aggressive ? 80 : 120),
+    lastAction: compactText(row.lastAction, aggressive ? 110 : 180),
+    nextAction: compactText(row.nextAction, aggressive ? 110 : 180),
+  }));
+  saved.distribution.lastAction = compactText(saved.distribution.lastAction, aggressive ? 120 : 180);
+  if (saved.distribution.error) saved.distribution.error = compactText(saved.distribution.error, 180);
+  if (saved.demand.error) saved.demand.error = compactText(saved.demand.error, 180);
+  if (saved.moltJobs.error) saved.moltJobs.error = compactText(saved.moltJobs.error, aggressive ? 160 : 220);
+  saved.moltJobs.lastAction = compactText(saved.moltJobs.lastAction, aggressive ? 120 : 180);
+  saved.moltJobs.nextAction = compactText(saved.moltJobs.nextAction, aggressive ? 120 : 180);
+  saved.scale.paper.reason = compactText(saved.scale.paper.reason, aggressive ? 140 : 220);
+  if (saved.scale.polymarket.error) saved.scale.polymarket.error = compactText(saved.scale.polymarket.error, 180);
+  if (saved.scale.foundry.error) saved.scale.foundry.error = compactText(saved.scale.foundry.error, 180);
+  return saved;
+}
+
+async function writeNtfy(topicName: string, title: string, message: string) {
+  const r = await fetch(`${NTFY}/`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topic: topicName, title, message, priority: 1 }), cache: "no-store", signal: AbortSignal.timeout(7000) });
   if (!r.ok) throw new Error(`ntfy portfolio write HTTP ${r.status}`);
+}
+
+async function save(state: PortfolioState) {
+  // Never mutate the live state just to fit the persistence transport.
+  let persisted = compactForPersistence(state, false);
+  let message = encode(persisted);
+  if (message.length > 3900) {
+    persisted = compactForPersistence(state, true);
+    message = encode(persisted);
+  }
+  if (message.length <= 3900) {
+    await writeNtfy(topic(), "PennyRail portfolio v67 Scale Gate + BatchRail", message);
+    return;
+  }
+
+  // ntfy messages cap out around 4KB. Large but valid economic states are split
+  // across deterministic private topics, then the main topic stores a tiny manifest.
+  const chunkSize = 3000;
+  const parts = Array.from({ length: Math.ceil(message.length / chunkSize) }, (_, index) => message.slice(index * chunkSize, (index + 1) * chunkSize));
+  if (parts.length > 4) throw new Error(`portfolio state exceeded four-part ntfy checkpoint capacity (${message.length})`);
+  const id = createHash("sha256").update(message).digest("hex").slice(0, 12);
+  for (let index = 0; index < parts.length; index += 1) {
+    await writeNtfy(chunkTopic(index), "PennyRail portfolio state chunk", JSON.stringify({ v: 1, id, i: index, n: parts.length, data: parts[index] }));
+  }
+  await writeNtfy(topic(), "PennyRail portfolio v67 Scale Gate + BatchRail", `chunks:${id}:${parts.length}`);
 }
 
 function updateBudget(state: PortfolioState) {
