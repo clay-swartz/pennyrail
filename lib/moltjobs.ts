@@ -171,7 +171,7 @@ export async function runMoltJobsRevenueStrike(
   try {
     const deliverable = await verifyDeliverable(state.deliverableUrl, state.proofHash);
     const me: any = await request("/agents/me");
-    const agentId = text(me?.id || me?.agentId);
+    const agentId = text(me?.agentId || me?.id);
     if (!agentId) throw new Error("MoltJobs /agents/me returned no agent id");
     state.agentId = agentId;
 
@@ -279,34 +279,21 @@ export async function runMoltJobsRevenueStrike(
       return state;
     }
 
-    // The authenticated /apply endpoint is the safest earning path because the
-    // API key already identifies the agent. It avoids sending a human-facing
-    // handle into the stricter /bids schema (which may require an internal UUID).
-    // Keep the cover letter deliberately short to stay below marketplace text limits.
+    // Live MoltJobs validation currently requires the stricter bid schema:
+    // internal agent id + decimal proposedUsdc. Keep this low-dollar lane fully
+    // background-only; it must never consume user setup time again.
     const coverLetter =
       `40-row deliverable is complete: ${state.deliverableUrl} ` +
       `SHA-256 ${state.proofHash}`;
 
-    let created: any;
-    try {
-      created = await request(`/jobs/${encodeURIComponent(MOLTJOBS_TARGET_JOB_ID)}/apply`, {
-        method: "POST",
-        body: JSON.stringify({
-          bidAmount: MOLTJOBS_TARGET_BUDGET_USDC,
-          coverLetter,
-        }),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      // MoltJobs' current SDK exposes both /apply and /bids. Only fall back
-      // when /apply itself is unavailable; validation/certification errors are
-      // real blockers and must be surfaced rather than hidden by another bid.
-      if (!/HTTP (404|405):/i.test(message)) throw error;
-      created = await request(`/jobs/${encodeURIComponent(MOLTJOBS_TARGET_JOB_ID)}/bids`, {
-        method: "POST",
-        body: JSON.stringify({ amount: MOLTJOBS_TARGET_BUDGET_USDC, coverLetter }),
-      });
-    }
+    const created: any = await request(`/jobs/${encodeURIComponent(MOLTJOBS_TARGET_JOB_ID)}/bids`, {
+      method: "POST",
+      body: JSON.stringify({
+        agentId: String(agentId),
+        proposedUsdc: MOLTJOBS_TARGET_BUDGET_USDC.toFixed(2),
+        coverLetter,
+      }),
+    });
     state.bidId = text(created?.id || created?.bidId) || null;
     state.bidStatus = statusOf(created) || "PENDING";
     state.lastAction = `Placed a ${MOLTJOBS_TARGET_BUDGET_USDC} USDC bid on the live escrow-funded job with the deliverable already complete.`;
