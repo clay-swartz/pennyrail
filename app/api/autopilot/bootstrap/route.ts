@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { bootstrapAutopilot } from "@/lib/autopilot";
-import { portfolioStatus, runPortfolioTick } from "@/lib/portfolio-engine";
-import { activateBatchRailDiscovery } from "@/lib/batchrail-activation";
+import { autopilotStatus, bootstrapAutopilot } from "@/lib/autopilot";
+import { ensurePortfolioScheduled } from "@/lib/portfolio-engine";
+import {
+  batchRailActivationState,
+  scheduleBatchRailActivation,
+} from "@/lib/batchrail-activation";
+import { scheduleBatchRailDistribution } from "@/lib/batchrail-distribution";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,37 +19,135 @@ function origin() {
   return "https://pennyrail.vercel.app";
 }
 
+async function resilientAutopilotBootstrap() {
+  // A transient ntfy read failure previously looked identical to "no state" and
+  // caused bootstrapAutopilot() to create a brand-new Kalshi paper window. Retry
+  // status reads first and never overwrite evidence merely because the checkpoint
+  // transport is momentarily unavailable. Scheduled ticks already carry fallback
+  // state in their callback payload.
+  let last: any = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      last = await autopilotStatus();
+      if (last?.startedAt) {
+        if (last.running) {
+          return {
+            ok: true,
+            mode: last.mode,
+            action: "ALREADY_RUNNING",
+            startedAt: last.startedAt,
+            lastTickAt: last.lastTickAt,
+            nextSlot: last.nextSlot,
+            scoreboard: last.scoreboard,
+            kalshi: last.kalshi,
+            radar: last.radar,
+            gate: last?.scoreboard ? {
+              paperNetRunRateUsdPerDay: last.scoreboard.paperNetRunRateUsdPerDay,
+              paperRewardRunRateUsdPerDay: last.scoreboard.paperRewardRunRateUsdPerDay,
+              paperTradeRunRateUsdPerDay: last.scoreboard.paperTradeRunRateUsdPerDay,
+              evidence24hComplete: Boolean(last.scoreboard.paperSamples >= 100 && last.scoreboard.paperCoverage >= 0.70),
+              liveCapitalReady: Boolean(last.scoreboard.liveCapitalReady),
+              reason: last.scoreboard.gateReason || null,
+            } : null,
+            errors: Array.isArray(last.errors) ? last.errors.slice(0, 3) : [],
+          };
+        }
+        // A successfully loaded but stale state is safe to restart;
+        // bootstrapAutopilot() will load the same checkpoint and continue it.
+        return await bootstrapAutopilot();
+      }
+    } catch {}
+    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 300));
+  }
+  return {
+    ok: false,
+    mode: "PENNYRAIL_CONSOLIDATED_AUTOPILOT_V61",
+    action: "STATE_READ_DEFERRED",
+    error: "Autopilot checkpoint could not be read reliably. Evidence was preserved rather than reset; the existing signed callback chain may repersist it on the next tick.",
+  };
+}
+
 export async function GET() {
   try {
-    const result = await bootstrapAutopilot();
+    // Bootstrap is orchestration only. Run independent checkpoint reads in
+    // parallel so a slow external state transport cannot starve the 60s request.
+    const [autopilotR, portfolioR] = await Promise.allSettled([
+      resilientAutopilotBootstrap(),
+      ensurePortfolioScheduled(),
+    ]);
 
-    let batchRailActivation: any = { ok: false, activated: false, spentUsd: 0, stage: "budget-check" };
-    try {
-      const before = await portfolioStatus();
-      const budget = before?.state?.budget || {};
-      const availableToday = Number(budget.availableTodayUsd ?? 1);
-      const availableWeek = Number(budget.availableWeekUsd ?? 5);
-      if (availableToday + 1e-9 >= 0.05 && availableWeek + 1e-9 >= 0.05) {
-        batchRailActivation = await activateBatchRailDiscovery(origin());
-      } else {
-        batchRailActivation = { ok: false, activated: false, spentUsd: 0, stage: "budget-blocked", error: "The one-time $0.05 BatchRail discovery seed would exceed the current experiment budget." };
-      }
-    } catch (error) {
-      batchRailActivation = { ok: false, activated: false, spentUsd: 0, stage: "activation", error: error instanceof Error ? error.message : String(error) };
-    }
+    const autopilot: any = autopilotR.status === "fulfilled"
+      ? autopilotR.value
+      : { ok: false, mode: "PENNYRAIL_CONSOLIDATED_AUTOPILOT_V61", action: "STATE_READ_DEFERRED", error: autopilotR.reason instanceof Error ? autopilotR.reason.message : String(autopilotR.reason) };
 
     let portfolio: any;
-    try {
-      // Run after the activation attempt so a successful one-time $0.05 seed is
-      // immediately reconciled into the experiment/cost ledger.
-      portfolio = await runPortfolioTick(Math.floor(Date.now() / 1000));
-    } catch (error) {
-      portfolio = { ok: false, error: error instanceof Error ? error.message : String(error) };
+    if (portfolioR.status === "fulfilled") {
+      const scheduled: any = portfolioR.value;
+      const state: any = scheduled?.state || {};
+      portfolio = {
+        ok: Boolean(scheduled?.ok),
+        action: scheduled?.action || null,
+        lastTickAt: scheduled?.lastTickAt ?? state?.lastTickAt ?? null,
+        nextSlot: scheduled?.nextSlot ?? state?.nextSlot ?? null,
+        money: state?.money || null,
+        budget: state?.budget || null,
+        scale: state?.scale ? {
+          accountingVersion: state.scale.accountingVersion,
+          samples: state.scale.samples,
+          correctedEvidenceReset: state.scale.accountingVersion === 2,
+        } : null,
+        error: scheduled?.error || null,
+      };
+    } else {
+      portfolio = { ok: false, action: "SCHEDULE_FAILED", error: portfolioR.reason instanceof Error ? portfolioR.reason.message : String(portfolioR.reason) };
     }
-    return NextResponse.json({ ...result, portfolio, batchRailActivation }, { headers: { "cache-control": "no-store" } });
+
+    const activationTask = async () => {
+      const prior = await batchRailActivationState();
+      if (prior?.status === "seeded") {
+        return { ok: true, activated: true, spentUsd: 0, stage: "already-seeded", seed: prior };
+      }
+      // Never spend when the durable budget could not be read. Free distribution
+      // may continue, but the nickel waits for accounting certainty.
+      if (!portfolio?.budget) {
+        return { ok: false, activated: false, spentUsd: 0, stage: "budget-unavailable", error: "Portfolio budget checkpoint is temporarily unavailable; the paid activation was deferred rather than risk exceeding the experiment cap." };
+      }
+      const availableToday = Number(portfolio.budget.availableTodayUsd ?? 0);
+      const availableWeek = Number(portfolio.budget.availableWeekUsd ?? 0);
+      if (availableToday + 1e-9 < 0.05 || availableWeek + 1e-9 < 0.05) {
+        return { ok: false, activated: false, spentUsd: 0, stage: "budget-blocked", error: "The one-time $0.05 BatchRail discovery seed would exceed the current experiment budget." };
+      }
+      const scheduled = await scheduleBatchRailActivation(origin(), 60);
+      return {
+        ok: true, activated: false, spentUsd: 0, stage: "scheduled", nextAttemptSlot: scheduled.slot,
+        note: "The paid BatchRail activation runs in its own signed request so it cannot be killed by the bootstrap time budget.",
+      };
+    };
+
+    const distributionTask = async () => {
+      const distributed = await scheduleBatchRailDistribution(origin(), 90);
+      return {
+        ok: Boolean(distributed.ok),
+        stage: distributed.alreadyDistributed ? "already-distributed" : distributed.scheduled ? "scheduled" : "ready",
+        nextAttemptSlot: distributed.slot ?? null,
+      };
+    };
+
+    const [activationR, distributionR] = await Promise.allSettled([activationTask(), distributionTask()]);
+    const batchRailActivation = activationR.status === "fulfilled"
+      ? activationR.value
+      : { ok: false, activated: false, spentUsd: 0, stage: "schedule-failed", error: activationR.reason instanceof Error ? activationR.reason.message : String(activationR.reason) };
+    const batchRailDistribution = distributionR.status === "fulfilled"
+      ? distributionR.value
+      : { ok: false, stage: "schedule-failed", error: distributionR.reason instanceof Error ? distributionR.reason.message : String(distributionR.reason) };
+
+    return NextResponse.json(
+      { ...autopilot, portfolio, batchRailActivation, batchRailDistribution },
+      { headers: { "cache-control": "no-store" } },
+    );
   } catch (error) {
     return NextResponse.json(
-      { ok: false, mode: "PENNYRAIL_CONSOLIDATED_AUTOPILOT_V61_PORTFOLIO_V67", error: error instanceof Error ? error.message : String(error) },
+      { ok: false, mode: "PENNYRAIL_CONSOLIDATED_AUTOPILOT_V61_PORTFOLIO_V68", error: error instanceof Error ? error.message : String(error) },
       { status: 500, headers: { "cache-control": "no-store" } },
     );
   }

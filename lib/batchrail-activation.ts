@@ -1,10 +1,11 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { BATCHRAIL_TRIAL_PATH, BATCHRAIL_TRIAL_PRICE_USD } from "@/lib/batchrail";
 import { buyerAccount, paidFetchBaseUsdcCapped, radarBuyerAddress } from "@/lib/radar-buyer";
 import { mode, payTo } from "@/lib/x402-server";
 
 const NTFY = "https://ntfy.sh";
-const BASE_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bdA02913";
+const SCHEDULER = "https://aisenseapi.com/services/v1/webhook_schedule";
+const BASE_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
 
 type SeedState = {
   v: 1;
@@ -53,11 +54,45 @@ function cleanOrigin(raw: string) {
   return raw.replace(/\/$/, "");
 }
 
+function safeEqual(a: string, b: string) {
+  try {
+    const aa = Buffer.from(a);
+    const bb = Buffer.from(b);
+    return aa.length === bb.length && timingSafeEqual(aa, bb);
+  } catch { return false; }
+}
+
+function activationToken(slot: number) {
+  return createHmac("sha256", secret()).update(`batchrail-activation-v68:${slot}`).digest("hex");
+}
+
+export function verifyBatchRailActivationToken(slot: number, token: string) {
+  if (!Number.isInteger(slot) || slot <= 0 || !token || !secret()) return false;
+  if (Math.abs(Math.floor(Date.now() / 1000) - slot) > 30 * 60) return false;
+  return safeEqual(token, activationToken(slot));
+}
+
+export async function scheduleBatchRailActivation(publicOrigin: string, delaySeconds = 60) {
+  const origin = cleanOrigin(publicOrigin);
+  const slot = Math.floor(Date.now() / 1000) + Math.max(60, Math.min(600, Math.floor(delaySeconds)));
+  const url = `${origin}/api/batch/activate?slot=${slot}&token=${encodeURIComponent(activationToken(slot))}`;
+  const response = await fetch(SCHEDULER, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ url, delay_seconds: Math.max(60, slot - Math.floor(Date.now() / 1000)), payload: {} }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
+  });
+  const raw = await response.text();
+  if (!response.ok) throw new Error(`BatchRail activation scheduler HTTP ${response.status}: ${raw.slice(0, 220)}`);
+  return { ok: true, scheduled: true, slot, url: `${origin}/api/batch/activate`, schedulerStatus: response.status };
+}
+
 function safeSeller() {
   return mode === "mainnet" && /^0x[0-9a-fA-F]{40}$/.test(String(payTo || "")) && !/^0x0{40}$/i.test(String(payTo || ""));
 }
 
-async function buyerBaseUsdcBalanceUsd(): Promise<number> {
+export async function buyerBaseUsdcBalanceUsd(): Promise<number> {
   const account = await buyerAccount();
   const page = await account.listTokenBalances({ network: "base" });
   const balances = Array.isArray(page?.balances) ? page.balances : [];

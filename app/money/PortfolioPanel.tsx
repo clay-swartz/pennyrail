@@ -43,7 +43,7 @@ export default function PortfolioPanel() {
 
   return <section style={{ margin: "28px auto 60px", maxWidth: 1180, padding: 22, border: "1px solid #b9b1a3", borderRadius: 18, background: "rgba(255,255,255,.34)" }}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-      <div><div style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", opacity: .65 }}>PennyRail Portfolio Engine v67 — Scale Gate</div><h2 style={{ margin: "6px 0" }}>Only money paths with a credible $1K+/day ceiling get attention</h2></div>
+      <div><div style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", opacity: .65 }}>PennyRail Portfolio Engine v68 — Corrected Scale Gate</div><h2 style={{ margin: "6px 0" }}>Only money paths with a credible $1K+/day ceiling get attention</h2></div>
       <div style={{ textAlign: "right" }}><div style={{ fontSize: 13, opacity: .65 }}>Actual progress to $1,000/day NET</div><strong style={{ fontSize: 28 }}>{Math.min(100, Number(m.progressTo1000Day || 0) * 100).toFixed(2)}%</strong></div>
     </div>
 
@@ -52,7 +52,7 @@ export default function PortfolioPanel() {
         ["Outside revenue ~24h", money(m.actualOutside24hUsd)],
         ["Known cost ~24h", money(m.actualKnownCost24hUsd)],
         ["NET after recorded costs ~24h", money(m.actualNet24hUsd)],
-        ["Polymarket active >=$1K/day pools", String(pm.marketsAtLeast1000 || 0)],
+        ["Polymarket shared pools >=$1K/day", String(pm.programsAtLeast1000 || 0)],
         ["Largest measured reward pool/day", wholeMoney(pm.largestDailyizedPoolUsd)],
         ["Scale samples", String(scale.samples || 0)],
         ["Experiment spend today", `${money(b.spentTodayUsd)} / $1.00`],
@@ -63,9 +63,9 @@ export default function PortfolioPanel() {
     <div style={{ marginTop: 14, padding: 16, border: "2px solid #72695c", borderRadius: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><strong>SCALE LANE #1 — EXCHANGE-PAID INCENTIVES</strong><strong>{paper.screenPassed ? "SCALE SCREEN PASSED" : pm.ok ? "PAPER MEASURING" : "SCANNING"}</strong></div>
       <div style={{ marginTop: 7 }}>Polymarket US liquidity / volume / fill reward pools</div>
-      <div style={{ marginTop: 5, opacity: .78 }}>Active markets: {pm.activeMarkets || 0} · Reward periods: {pm.activePeriods || 0} · Dailyized external pool capacity: {wholeMoney(pm.totalDailyizedRewardPoolUsd)}</div>
-      {topPm ? <div style={{ marginTop: 7 }}>Top current screen: <b>{topPm.marketSlug}</b> · {wholeMoney(topPm.dailyPoolUsd)}/day pool · target {Number(topPm.targetSize || 0).toLocaleString()} contracts · indicative full-target collateral {wholeMoney(topPm.capitalUsd)}</div> : null}
-      {topPm?.visibleGrossUpperUsdPerDay != null ? <div style={{ marginTop: 5, opacity: .75 }}>Visible-book screening upper bound: {wholeMoney(topPm.visibleGrossUpperUsdPerDay)}/day. This is capacity screening, not claimed profit.</div> : null}
+      <div style={{ marginTop: 5, opacity: .78 }}>Active markets: {pm.activeMarkets || 0} · Unique shared program periods: {pm.activeProgramPeriods || 0} · Corrected external pool capacity: {wholeMoney(pm.totalDailyizedRewardPoolUsd)}</div>
+      {topPm ? <div style={{ marginTop: 7 }}>Top corrected program: <b>{topPm.programId || "program"}</b> · {wholeMoney(topPm.dailyPoolUsd)}/day shared across {Number(topPm.marketCount || 0).toLocaleString()} markets · target {Number(topPm.targetSize || 0).toLocaleString()} contracts · estimated capital for $1K gross/day {topPm.estimatedCapitalFor1000GrossUsd == null ? "—" : wholeMoney(topPm.estimatedCapitalFor1000GrossUsd)}</div> : null}
+      {topPm?.grossPerSideUsdPerDay != null ? <div style={{ marginTop: 5, opacity: .75 }}>Equal-side program reward yardstick: {wholeMoney(topPm.grossPerSideUsdPerDay)}/day per side · sampled markets {Number(topPm.sampledMarkets || 0)}. This is screening capacity, not claimed profit or NET.</div> : null}
       <div style={{ marginTop: 7 }}>{paper.reason || "Accumulating public observations."}</div>
       <div style={{ marginTop: 5, opacity: .7 }}>Live credentials: {pm.configured ? "configured" : "not requested"} · Live flag: {pm.live ? "ON" : "OFF"} · Armed: {pm.armed ? "YES" : "NO"} · Capital cap: {wholeMoney(pm.maxCapitalUsd)}</div>
       {pm.error ? <div style={{ marginTop: 7, opacity: .78 }}>Scanner: {pm.error}</div> : null}
@@ -81,7 +81,7 @@ export default function PortfolioPanel() {
     <div style={{ marginTop: 14, padding: 16, border: "1px solid #a69c8e", borderRadius: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><strong>MONEY FOUNDRY</strong><strong>{foundry.primary || "scanning"}</strong></div>
       <div style={{ marginTop: 7 }}>The Foundry can invent a new product/platform or route existing supply. It rejects anything whose credible ceiling is too small.</div>
-      <div style={{ marginTop: 6, opacity: .75 }}>402 market scan: {Number(foundry.x402Services || 0).toLocaleString()} services · {Number(foundry.x402Samples24h || 0).toLocaleString()} 24h reliability/payment samples · median observed price {foundry.medianPriceUsd == null ? "—" : money(foundry.medianPriceUsd)}</div>
+      <div style={{ marginTop: 6, opacity: .75 }}>Direct machine-commerce evidence: {Number(foundry.x402Services || 0).toLocaleString()} currently measured service surfaces · {Number(foundry.x402Samples24h || 0).toLocaleString()} settled-demand samples. Suspended 402radar is no longer a dependency.</div>
       {(foundry.lanes || []).map((lane:any) => <div key={lane.id} style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #ddd5c8" }}><b>{lane.id}</b> · {lane.status}<div style={{ opacity: .7, marginTop: 3 }}>{lane.measuredDemand}</div></div>)}
       {foundry.error ? <div style={{ marginTop: 7, opacity: .78 }}>Foundry scan: {foundry.error}</div> : null}
     </div>

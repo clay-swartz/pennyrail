@@ -1,0 +1,22 @@
+PennyRail v68 — corrected Scale Gate + live distribution
+
+Upload the contents of this release directory to repository root, preserving folders.
+
+Branch:
+v68-corrected-scale-live-distribution
+
+Commit as:
+Correct PennyRail scale economics and unblock live distribution
+
+PR title:
+Correct PennyRail scale economics and unblock live distribution
+
+No new environment variables.
+Do not add Polymarket credentials or capital.
+Do not send more USDC to the BatchRail buyer wallet from this release alone.
+
+After Vercel is green, call once:
+https://pennyrail.vercel.app/api/autopilot/bootstrap
+
+v68 will schedule the paid BatchRail activation and free distribution as separate signed callbacks. Their public non-secret status is available at:
+https://pennyrail.vercel.app/api/batch/status
