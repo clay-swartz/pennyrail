@@ -1,0 +1,35 @@
+PennyRail v69 — PermitRail Revenue Engine
+
+Upload the CONTENTS of pennyrail-v69-release/ to the repository root, preserving folders.
+
+Branch:
+v69-permitrail-revenue-engine
+
+Commit as:
+Launch PermitRail recurring project intelligence revenue engine
+
+PR title:
+Launch PermitRail recurring project intelligence revenue engine
+
+No new environment variables are required for Vercel build.
+Do not add Polymarket/Kalshi capital or credentials.
+
+After Vercel is green, the product can already sell via the existing x402 rail. The first human-revenue unlock is one Production environment variable:
+STRIPE_SECRET_KEY
+
+Do not add it until the code is green. A Stripe webhook secret is optional for first revenue; subscription access is verified directly against Stripe on every request.
+
+After the Stripe key is present and production is redeployed, call once:
+https://pennyrail.vercel.app/api/autopilot/bootstrap
+
+Storefront:
+https://pennyrail.vercel.app/permitrail
+
+Free masked sample:
+https://pennyrail.vercel.app/api/permitrail/sample
+
+Status:
+https://pennyrail.vercel.app/api/permitrail/status
+
+RapidAPI OpenAPI import URL (for the later marketplace distribution step):
+https://pennyrail.vercel.app/api/permitrail/openapi

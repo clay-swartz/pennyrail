@@ -40,18 +40,21 @@ export default function PortfolioPanel() {
   const topPm = Array.isArray(pm.top) ? pm.top[0] : null;
   const experiments = Array.isArray(data.experiments) ? data.experiments : [];
   const batchRail = experiments.find((e:any) => e.id === "batchrail-bulk-inference") || null;
+  const permitRail = experiments.find((e:any) => e.id === "permitrail-dfw-project-intelligence") || null;
 
   return <section style={{ margin: "28px auto 60px", maxWidth: 1180, padding: 22, border: "1px solid #b9b1a3", borderRadius: 18, background: "rgba(255,255,255,.34)" }}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-      <div><div style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", opacity: .65 }}>PennyRail Portfolio Engine v68 — Corrected Scale Gate</div><h2 style={{ margin: "6px 0" }}>Only money paths with a credible $1K+/day ceiling get attention</h2></div>
+      <div><div style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", opacity: .65 }}>PennyRail Portfolio Engine v69 — PermitRail Revenue Engine</div><h2 style={{ margin: "6px 0" }}>Outside revenue first. PermitRail is now the high-ticket recurring lane.</h2></div>
       <div style={{ textAlign: "right" }}><div style={{ fontSize: 13, opacity: .65 }}>Actual progress to $1,000/day NET</div><strong style={{ fontSize: 28 }}>{Math.min(100, Number(m.progressTo1000Day || 0) * 100).toFixed(2)}%</strong></div>
     </div>
 
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, marginTop: 16 }}>
       {[
         ["Outside revenue ~24h", money(m.actualOutside24hUsd)],
+        ["PermitRail Stripe revenue ~24h", money(m.stripeOutside24hUsd)],
         ["Known cost ~24h", money(m.actualKnownCost24hUsd)],
         ["NET after recorded costs ~24h", money(m.actualNet24hUsd)],
+        ["Outside paying accounts ~24h", String(m.outsidePayers24h || 0)],
         ["Polymarket shared pools >=$1K/day", String(pm.programsAtLeast1000 || 0)],
         ["Largest measured reward pool/day", wholeMoney(pm.largestDailyizedPoolUsd)],
         ["Scale samples", String(scale.samples || 0)],
@@ -60,8 +63,17 @@ export default function PortfolioPanel() {
       ].map(([k,v]) => <div key={k} style={{ padding: 14, border: "1px solid #d5cec2", borderRadius: 12 }}><div style={{ fontSize: 12, opacity: .65 }}>{k}</div><div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>{v}</div></div>)}
     </div>
 
+    <div style={{ marginTop: 14, padding: 16, border: "2px solid #4d463c", borderRadius: 14, background: "rgba(255,255,255,.45)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><strong>PERMITRAIL — HIGH-TICKET RECURRING REVENUE</strong><strong>{permitRail?.status === "scale" ? "PAID / SCALING" : "LIVE"}</strong></div>
+      <div style={{ marginTop: 7 }}>Fresh DFW public project records → scored contractor opportunities → recurring subscriptions, API feeds and machine-paid one-offs.</div>
+      <div style={{ marginTop: 7 }}>Stripe revenue ~24h: <b>{money(m.stripeOutside24hUsd)}</b> · paying subscriptions: <b>{Number(m.stripePayers24h || 0).toLocaleString()}</b> · known Stripe fees: <b>{money(m.stripeKnownFees24hUsd)}</b></div>
+      <div style={{ marginTop: 6, opacity: .75 }}>{permitRail?.lastAction || "PermitRail is initializing its first autonomous public-record refresh."}</div>
+      <div style={{ marginTop: 6, opacity: .75 }}>{permitRail?.nextAction || "Self-serve checkout activates when Stripe is connected."}</div>
+      <div style={{ marginTop: 8 }}><a href="/permitrail" style={{ fontWeight: 700 }}>Open PermitRail storefront →</a></div>
+    </div>
+
     <div style={{ marginTop: 14, padding: 16, border: "2px solid #72695c", borderRadius: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><strong>SCALE LANE #1 — EXCHANGE-PAID INCENTIVES</strong><strong>{paper.screenPassed ? "SCALE SCREEN PASSED" : pm.ok ? "PAPER MEASURING" : "SCANNING"}</strong></div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><strong>SCALE LANE — EXCHANGE-PAID INCENTIVES</strong><strong>{paper.screenPassed ? "SCALE SCREEN PASSED" : pm.ok ? "PAPER MEASURING" : "SCANNING"}</strong></div>
       <div style={{ marginTop: 7 }}>Polymarket US liquidity / volume / fill reward pools</div>
       <div style={{ marginTop: 5, opacity: .78 }}>Active markets: {pm.activeMarkets || 0} · Unique shared program periods: {pm.activeProgramPeriods || 0} · Corrected external pool capacity: {wholeMoney(pm.totalDailyizedRewardPoolUsd)}</div>
       {topPm ? <div style={{ marginTop: 7 }}>Top corrected program: <b>{topPm.programId || "program"}</b> · {wholeMoney(topPm.dailyPoolUsd)}/day shared across {Number(topPm.marketCount || 0).toLocaleString()} markets · target {Number(topPm.targetSize || 0).toLocaleString()} contracts · estimated capital for $1K gross/day {topPm.estimatedCapitalFor1000GrossUsd == null ? "—" : wholeMoney(topPm.estimatedCapitalFor1000GrossUsd)}</div> : null}
