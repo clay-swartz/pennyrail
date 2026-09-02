@@ -18,6 +18,8 @@ import { polymarketUSConfig, scanPolymarketUSScaleOpportunity } from "@/lib/poly
 import { runMoneyFoundry } from "@/lib/scale-foundry";
 import { BATCHRAIL_FULL_MAX_ITEMS, BATCHRAIL_FULL_PRICE_USD, batchRailEconomics } from "@/lib/batchrail";
 import { batchRailActivationState } from "@/lib/batchrail-activation";
+import { permitRailStripeRevenue24h, type PermitRailStripeRevenue } from "@/lib/permitrail-stripe-revenue";
+import { loadPermitRailState } from "@/lib/permitrail";
 
 const NTFY = "https://ntfy.sh";
 const SCHEDULER = "https://aisenseapi.com/services/v1/webhook_schedule";
@@ -65,12 +67,13 @@ type MoneyState = {
   allTimeOutsideUsd: number; allTimeKnownCostUsd: number; allTimeNetUsd: number;
   outsidePayers24h: number; outsidePayments24h: number; firstDollarAt: string | null;
   firstDollarSource: string | null; progressTo1000Day: number;
-  x402Outside24hUsd: number; moltJobsOutside24hUsd: number;
-  x402Payers24h: number; x402Payments24h: number;
+  x402Outside24hUsd: number; moltJobsOutside24hUsd: number; stripeOutside24hUsd: number;
+  x402Payers24h: number; x402Payments24h: number; stripePayers24h: number; stripePayments24h: number;
+  stripeKnownFees24hUsd: number; stripeFeesAllTimeUsd: number; netFullyAudited24h: boolean;
 };
 
 export type PortfolioState = {
-  v: 68; startedAt: string; lastTickAt: string | null; lastSlot: number; nextSlot: number | null; tickCount: number;
+  v: 69; startedAt: string; lastTickAt: string | null; lastSlot: number; nextSlot: number | null; tickCount: number;
   scheduler: { ok: boolean; lastScheduledAt: string | null; lastError: string | null };
   money: MoneyState;
   budget: { dailyCapUsd: number; weeklyCapUsd: number; unprovenTestCapUsd: number; spentTodayUsd: number; spentWeekUsd: number; availableTodayUsd: number; availableWeekUsd: number; spend: Spend[] };
@@ -118,9 +121,9 @@ function blankScale(): ScaleState {
 function blank(): PortfolioState {
   const k = kalshiLiveConfig();
   return {
-    v: 68, startedAt: nowIso(), lastTickAt: null, lastSlot: 0, nextSlot: null, tickCount: 0,
+    v: 69, startedAt: nowIso(), lastTickAt: null, lastSlot: 0, nextSlot: null, tickCount: 0,
     scheduler: { ok: false, lastScheduledAt: null, lastError: null },
-    money: { actualOutside24hUsd: 0, actualKnownCost24hUsd: 0, actualNet24hUsd: 0, allTimeOutsideUsd: 0, allTimeKnownCostUsd: 0, allTimeNetUsd: 0, outsidePayers24h: 0, outsidePayments24h: 0, firstDollarAt: null, firstDollarSource: null, progressTo1000Day: 0, x402Outside24hUsd: 0, moltJobsOutside24hUsd: 0, x402Payers24h: 0, x402Payments24h: 0 },
+    money: { actualOutside24hUsd: 0, actualKnownCost24hUsd: 0, actualNet24hUsd: 0, allTimeOutsideUsd: 0, allTimeKnownCostUsd: 0, allTimeNetUsd: 0, outsidePayers24h: 0, outsidePayments24h: 0, firstDollarAt: null, firstDollarSource: null, progressTo1000Day: 0, x402Outside24hUsd: 0, moltJobsOutside24hUsd: 0, stripeOutside24hUsd: 0, x402Payers24h: 0, x402Payments24h: 0, stripePayers24h: 0, stripePayments24h: 0, stripeKnownFees24hUsd: 0, stripeFeesAllTimeUsd: 0, netFullyAudited24h: true },
     budget: { dailyCapUsd: DAILY_SPEND_CAP, weeklyCapUsd: WEEKLY_SPEND_CAP, unprovenTestCapUsd: UNPROVEN_TEST_CAP, spentTodayUsd: 0, spentWeekUsd: 0, availableTodayUsd: DAILY_SPEND_CAP, availableWeekUsd: WEEKLY_SPEND_CAP, spend: [] },
     demand: { checkedAt: null, baseBountyOpenApprox: 0, baseBountyExamples: [], taskBountyOpen: null, taskBountyTop: [], radarPrimary: null, error: null },
     distribution: { gatefareConfigured: Boolean(process.env.GATEFARE_PAT?.trim()), gatefareProducts: 0, gatefareRevenueUsd: 0, gatefarePublishedThisRun: 0, agent402Healthy: null, lastAction: "Existing x402 distribution remains live; dead/unavailable storefronts are not a setup priority.", error: null },
@@ -134,7 +137,7 @@ function blank(): PortfolioState {
 function migrateState(raw: any): PortfolioState {
   const base = blank();
   const state: PortfolioState = {
-    ...base, ...raw, v: 68,
+    ...base, ...raw, v: 69,
     scheduler: { ...base.scheduler, ...(raw?.scheduler || {}) },
     money: { ...base.money, ...(raw?.money || {}) },
     budget: { ...base.budget, ...(raw?.budget || {}), spend: Array.isArray(raw?.budget?.spend) ? raw.budget.spend : [] },
@@ -169,7 +172,7 @@ function decode(raw: string): PortfolioState | null {
     const exp = createHmac("sha256", secret()).update(`portfolio-state-v65:${body}`).digest("hex").slice(0, 40);
     if (!safeEqual(sig, exp)) return null;
     const parsed = JSON.parse(inflateRawSync(Buffer.from(body, "base64")).toString("utf8"));
-    return parsed?.v === 65 || parsed?.v === 66 || parsed?.v === 67 || parsed?.v === 68 ? migrateState(parsed) : null;
+    return parsed?.v === 65 || parsed?.v === 66 || parsed?.v === 67 || parsed?.v === 68 || parsed?.v === 69 ? migrateState(parsed) : null;
   } catch { return null; }
 }
 
@@ -266,7 +269,7 @@ async function save(state: PortfolioState) {
     message = encode(persisted);
   }
   if (message.length <= 3900) {
-    await writeNtfy(topic(), "PennyRail portfolio v68 corrected Scale Gate + BatchRail", message);
+    await writeNtfy(topic(), "PennyRail portfolio v69 PermitRail + corrected Scale Gate", message);
     return;
   }
 
@@ -279,7 +282,7 @@ async function save(state: PortfolioState) {
   for (let index = 0; index < parts.length; index += 1) {
     await writeNtfy(chunkTopic(index), "PennyRail portfolio state chunk", JSON.stringify({ v: 1, id, i: index, n: parts.length, data: parts[index] }));
   }
-  await writeNtfy(topic(), "PennyRail portfolio v68 corrected Scale Gate + BatchRail", `chunks:${id}:${parts.length}`);
+  await writeNtfy(topic(), "PennyRail portfolio v69 PermitRail + corrected Scale Gate", `chunks:${id}:${parts.length}`);
 }
 
 function updateBudget(state: PortfolioState) {
@@ -325,15 +328,34 @@ function recomputeMoney(state: PortfolioState) {
   updateBudget(state);
   const since = Date.now() - 86400000;
   state.money.moltJobsOutside24hUsd = moltJobsRevenue24h(state.moltJobs);
-  state.money.actualOutside24hUsd = round(state.money.x402Outside24hUsd + state.money.moltJobsOutside24hUsd);
-  const moltPayoutCount = (state.moltJobs.payouts || []).filter(row => Date.parse(row.at) >= Date.now() - 86400000).length;
-  state.money.outsidePayers24h = state.money.x402Payers24h + (state.money.moltJobsOutside24hUsd > 0 ? 1 : 0);
-  state.money.outsidePayments24h = state.money.x402Payments24h + moltPayoutCount;
-  state.money.actualKnownCost24hUsd = round(state.budget.spend.filter(s => Date.parse(s.at) >= since).reduce((a, s) => a + s.usd, 0));
-  state.money.allTimeKnownCostUsd = round(state.budget.spend.reduce((a, s) => a + s.usd, 0));
+  state.money.actualOutside24hUsd = round(state.money.x402Outside24hUsd + state.money.moltJobsOutside24hUsd + state.money.stripeOutside24hUsd);
+  const moltPayoutCount = (state.moltJobs.payouts || []).filter((row: any) => Date.parse(row.at) >= Date.now() - 86400000).length;
+  state.money.outsidePayers24h = state.money.x402Payers24h + state.money.stripePayers24h + (state.money.moltJobsOutside24hUsd > 0 ? 1 : 0);
+  state.money.outsidePayments24h = state.money.x402Payments24h + state.money.stripePayments24h + moltPayoutCount;
+  const experimentSpend24h = state.budget.spend.filter(s => Date.parse(s.at) >= since).reduce((a, s) => a + s.usd, 0);
+  state.money.actualKnownCost24hUsd = round(experimentSpend24h + state.money.stripeKnownFees24hUsd);
+  state.money.allTimeKnownCostUsd = round(state.budget.spend.reduce((a, s) => a + s.usd, 0) + state.money.stripeFeesAllTimeUsd);
   state.money.actualNet24hUsd = round(state.money.actualOutside24hUsd - state.money.actualKnownCost24hUsd);
   state.money.allTimeNetUsd = round(state.money.allTimeOutsideUsd - state.money.allTimeKnownCostUsd);
   state.money.progressTo1000Day = round(Math.max(0, state.money.actualNet24hUsd) / 1000, 4);
+}
+
+function ingestPermitRailStripeRevenue(state: PortfolioState, stripe: PermitRailStripeRevenue) {
+  state.money.stripeOutside24hUsd = round(num(stripe?.grossUsd));
+  state.money.stripeKnownFees24hUsd = round(num(stripe?.knownFeesUsd));
+  state.money.stripePayments24h = Array.isArray(stripe?.payments) ? stripe.payments.length : 0;
+  state.money.stripePayers24h = new Set((stripe?.payments || []).map(row => row.subscriptionId).filter(Boolean)).size;
+  state.money.netFullyAudited24h = Boolean(stripe?.costComplete);
+  for (const p of stripe?.payments || []) {
+    const key = `stripe:${p.key}`;
+    if (!p.grossUsd || state.seenRevenue.some(x => x.key === key)) continue;
+    state.seenRevenue.push({ key, usd: p.grossUsd, payer: p.subscriptionId || null });
+    state.money.allTimeOutsideUsd = round(state.money.allTimeOutsideUsd + p.grossUsd);
+    if (p.feeUsd != null) state.money.stripeFeesAllTimeUsd = round(state.money.stripeFeesAllTimeUsd + p.feeUsd);
+    else state.money.netFullyAudited24h = false;
+    if (!state.money.firstDollarAt) { state.money.firstDollarAt = p.at || nowIso(); state.money.firstDollarSource = "PermitRail Stripe subscription"; }
+  }
+  recomputeMoney(state);
 }
 
 function ingestChainRevenue(state: PortfolioState, ledger: any) {
@@ -524,8 +546,8 @@ async function runScaleGate(state: PortfolioState) {
 function moneyText(value: unknown) { return `$${num(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`; }
 
 async function heavy(state: PortfolioState) {
-  const [ledgerR, autopilotR, baseR, taskR, gfSyncR, gfRevenueR] = await Promise.allSettled([
-    scanExternalRevenue24h(), autopilotStatus(), scanBaseBounty(), scanTaskBounty(), syncGatefareExistingProducts(3), gatefareRevenue(30),
+  const [ledgerR, autopilotR, baseR, taskR, gfSyncR, gfRevenueR, stripeR, permitRailR] = await Promise.allSettled([
+    scanExternalRevenue24h(), autopilotStatus(), scanBaseBounty(), scanTaskBounty(), syncGatefareExistingProducts(3), gatefareRevenue(30), permitRailStripeRevenue24h(), loadPermitRailState(),
   ]);
   if (ledgerR.status === "fulfilled") ingestChainRevenue(state, ledgerR.value); else state.errors.unshift(`ledger: ${String(ledgerR.reason)}`);
   if (autopilotR.status === "fulfilled") {
@@ -541,10 +563,34 @@ async function heavy(state: PortfolioState) {
     const g: any = gfSyncR.value; state.distribution.gatefareConfigured = Boolean(g.configured); state.distribution.gatefarePublishedThisRun = num(g.published); state.distribution.error = g.errors?.length ? g.errors.join("; ") : null;
   }
   if (gfRevenueR.status === "fulfilled") { const g: any = gfRevenueR.value; state.distribution.gatefareProducts = num(g.products); state.distribution.gatefareRevenueUsd = num(g.revenueUsd); }
-  state.distribution.lastAction = "Existing x402/Agent402/Bazaar distribution remains live. Gatefare is dormant while its site is unavailable; no user setup is requested.";
+  if (stripeR.status === "fulfilled") ingestPermitRailStripeRevenue(state, stripeR.value); else { state.money.netFullyAudited24h = false; state.errors.unshift(`PermitRail Stripe ledger: ${String(stripeR.reason)}`); }
+  state.distribution.lastAction = "Existing x402/Agent402/Bazaar distribution remains live. PermitRail adds direct subscription and RapidAPI-ready distribution; Gatefare remains dormant.";
+  const permitRailState: any = permitRailR.status === "fulfilled" ? permitRailR.value : null;
 
   upsert(state, { id: "moltjobs-live-5usdc", lane: "funded agent work", task: MOLTJOBS_TARGET_TITLE, demandSource: "MoltJobs protected on-chain USDC escrow", buyerPriceUsd: MOLTJOBS_TARGET_BUDGET_USDC, upstreamCostUsd: 0, platformFeesUsd: 0.25, expectedMarginUsd: 4.75, actualSpendUsd: 0, actualRevenueUsd: state.moltJobs.settledRevenueUsd, actualNetUsd: state.moltJobs.settledRevenueUsd, outsidePayers: state.moltJobs.settledRevenueUsd > 0 ? 1 : 0, repeats: state.moltJobs.payouts.length, status: "background", lastAction: state.moltJobs.lastAction, nextAction: state.moltJobs.nextAction });
   upsert(state, { id: "existing-paid-distribution", lane: "multi-market distribution", task: "Keep existing paid PennyRail capabilities exposed on live x402 discovery surfaces", demandSource: "Agent402/Bazaar/x402", buyerPriceUsd: null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: null, actualSpendUsd: 0, actualRevenueUsd: state.money.x402Outside24hUsd, actualNetUsd: state.money.x402Outside24hUsd, outsidePayers: state.money.outsidePayers24h, repeats: state.money.outsidePayments24h, status: state.money.x402Outside24hUsd > 0 ? "scale" : "live", lastAction: state.distribution.lastAction, nextAction: "Keep measuring actual outside settlements; only promote this lane if measured demand proves a $1K+/day ceiling." });
+  upsert(state, {
+    id: "permitrail-dfw-project-intelligence",
+    lane: "high-ticket recurring data product",
+    task: "Sell scored DFW permit/project intelligence to contractors and API buyers",
+    demandSource: "Validated permit-lead subscription market + municipal public records + direct Stripe/RapidAPI/x402 distribution",
+    buyerPriceUsd: 299,
+    upstreamCostUsd: 0,
+    platformFeesUsd: state.money.stripeKnownFees24hUsd,
+    expectedMarginUsd: 290,
+    actualSpendUsd: 0,
+    actualRevenueUsd: state.money.stripeOutside24hUsd,
+    actualNetUsd: round(state.money.stripeOutside24hUsd - state.money.stripeKnownFees24hUsd),
+    outsidePayers: state.money.stripePayers24h,
+    repeats: state.money.stripePayments24h,
+    status: state.money.stripeOutside24hUsd > 0 ? "scale" : "live",
+    lastAction: permitRailState?.lastRefreshAt
+      ? `PermitRail refreshed ${permitRailState.totalSignals || 0} scored signals; ${permitRailState.hotSignals || 0} hot. Stripe outside revenue 24h: $${state.money.stripeOutside24hUsd.toFixed(2)}.`
+      : "PermitRail is deployed with self-serve Stripe checkout, paid x402 feeds and RapidAPI-ready provider route.",
+    nextAction: process.env.STRIPE_SECRET_KEY?.trim()
+      ? "Keep feed refresh/distribution autonomous and scale paid subscriptions; add RapidAPI provider secret when marketplace listing is ready."
+      : "Code is ready. Configure Stripe only when the account credential directly unlocks self-serve checkout.",
+  });
   const topJob = state.demand.taskBountyTop[0];
   upsert(state, { id: "other-funded-agent-jobs", lane: "agent jobs/bounties", task: "Keep TaskBounty/BaseBounty listeners active for additional funded work", demandSource: "TaskBounty + BaseBounty", buyerPriceUsd: topJob?.rewardUsd ?? null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: topJob?.rewardUsd ?? null, actualSpendUsd: 0, actualRevenueUsd: 0, actualNetUsd: 0, outsidePayers: 0, repeats: 0, status: "background", lastAction: `Observed ${state.demand.taskBountyOpen ?? 0} TaskBounty jobs and ~${state.demand.baseBountyOpenApprox} BaseBounty reward markers.`, nextAction: "Claim only work with a reliable automated deliverable and verifiable positive expected net." });
   upsert(state, { id: "broker-spread", lane: "broker/reseller", task: "Use existing v36 broker supply only after paid demand arrives", demandSource: "Existing paid request + revenue engine", buyerPriceUsd: null, upstreamCostUsd: 0, platformFeesUsd: 0, expectedMarginUsd: null, actualSpendUsd: 0, actualRevenueUsd: 0, actualNetUsd: 0, outsidePayers: 0, repeats: 0, status: "live", lastAction: "Broker supply preserved; no speculative upstream purchase.", nextAction: "On buyer-authorized request, enforce known sale price, hard upstream max, and positive contribution margin." });

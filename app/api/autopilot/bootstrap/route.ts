@@ -6,6 +6,8 @@ import {
   scheduleBatchRailActivation,
 } from "@/lib/batchrail-activation";
 import { scheduleBatchRailDistribution } from "@/lib/batchrail-distribution";
+import { ensurePermitRailScheduled } from "@/lib/permitrail";
+import { schedulePermitRailDistribution } from "@/lib/permitrail-distribution";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -71,9 +73,10 @@ export async function GET() {
   try {
     // Bootstrap is orchestration only. Run independent checkpoint reads in
     // parallel so a slow external state transport cannot starve the 60s request.
-    const [autopilotR, portfolioR] = await Promise.allSettled([
+    const [autopilotR, portfolioR, permitRailR] = await Promise.allSettled([
       resilientAutopilotBootstrap(),
       ensurePortfolioScheduled(),
+      ensurePermitRailScheduled(origin()),
     ]);
 
     const autopilot: any = autopilotR.status === "fulfilled"
@@ -101,6 +104,17 @@ export async function GET() {
     } else {
       portfolio = { ok: false, action: "SCHEDULE_FAILED", error: portfolioR.reason instanceof Error ? portfolioR.reason.message : String(portfolioR.reason) };
     }
+
+    const permitRail = permitRailR.status === "fulfilled"
+      ? {
+          ok: Boolean((permitRailR.value as any)?.ok),
+          action: (permitRailR.value as any)?.action || null,
+          lastRefreshAt: (permitRailR.value as any)?.state?.lastRefreshAt || null,
+          nextRefreshAt: (permitRailR.value as any)?.state?.nextRefreshAt || null,
+          totalSignals: Number((permitRailR.value as any)?.state?.totalSignals || 0),
+          hotSignals: Number((permitRailR.value as any)?.state?.hotSignals || 0),
+        }
+      : { ok: false, action: "SCHEDULE_FAILED", error: permitRailR.reason instanceof Error ? permitRailR.reason.message : String(permitRailR.reason) };
 
     const activationTask = async () => {
       const prior = await batchRailActivationState();
@@ -133,21 +147,32 @@ export async function GET() {
       };
     };
 
-    const [activationR, distributionR] = await Promise.allSettled([activationTask(), distributionTask()]);
+    const [activationR, distributionR, permitRailDistributionR] = await Promise.allSettled([
+      activationTask(),
+      distributionTask(),
+      schedulePermitRailDistribution(origin(), 150),
+    ]);
     const batchRailActivation = activationR.status === "fulfilled"
       ? activationR.value
       : { ok: false, activated: false, spentUsd: 0, stage: "schedule-failed", error: activationR.reason instanceof Error ? activationR.reason.message : String(activationR.reason) };
     const batchRailDistribution = distributionR.status === "fulfilled"
       ? distributionR.value
       : { ok: false, stage: "schedule-failed", error: distributionR.reason instanceof Error ? distributionR.reason.message : String(distributionR.reason) };
+    const permitRailDistribution = permitRailDistributionR.status === "fulfilled"
+      ? {
+          ok: Boolean((permitRailDistributionR.value as any)?.ok),
+          stage: (permitRailDistributionR.value as any)?.alreadyDistributed ? "already-distributed" : "scheduled",
+          slot: (permitRailDistributionR.value as any)?.slot || null,
+        }
+      : { ok: false, stage: "schedule-failed", error: permitRailDistributionR.reason instanceof Error ? permitRailDistributionR.reason.message : String(permitRailDistributionR.reason) };
 
     return NextResponse.json(
-      { ...autopilot, portfolio, batchRailActivation, batchRailDistribution },
+      { ...autopilot, portfolio, permitRail, batchRailActivation, batchRailDistribution, permitRailDistribution },
       { headers: { "cache-control": "no-store" } },
     );
   } catch (error) {
     return NextResponse.json(
-      { ok: false, mode: "PENNYRAIL_CONSOLIDATED_AUTOPILOT_V61_PORTFOLIO_V68", error: error instanceof Error ? error.message : String(error) },
+      { ok: false, mode: "PENNYRAIL_CONSOLIDATED_AUTOPILOT_V61_PORTFOLIO_V69", error: error instanceof Error ? error.message : String(error) },
       { status: 500, headers: { "cache-control": "no-store" } },
     );
   }
