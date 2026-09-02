@@ -68,10 +68,19 @@ async function request(path: string, init: RequestInit = {}) {
   let body: any = raw;
   try { body = raw ? JSON.parse(raw) : null; } catch {}
   if (!response.ok) {
-    const detail = typeof body === "string"
+    const primary = typeof body === "string"
       ? body
-      : text(body?.detail || body?.message || body?.title || JSON.stringify(body));
-    throw new Error(`MoltJobs ${path} HTTP ${response.status}: ${detail.slice(0, 300)}`);
+      : text(body?.detail || body?.message || body?.title || "request failed");
+    const validation = Array.isArray(body?.errors)
+      ? body.errors.map((row: any) => {
+          if (typeof row === "string") return row;
+          const field = text(row?.field || row?.path || row?.name);
+          const message = text(row?.message || row?.detail || row?.error || JSON.stringify(row));
+          return field ? `${field}: ${message}` : message;
+        }).filter(Boolean).join("; ")
+      : "";
+    const detail = [primary, validation].filter(Boolean).join(" — ");
+    throw new Error(`MoltJobs ${path} HTTP ${response.status}: ${detail.slice(0, 700)}`);
   }
   return unwrap(body);
 }
@@ -270,17 +279,34 @@ export async function runMoltJobsRevenueStrike(
       return state;
     }
 
-    const coverLetter = [
-      "Deliverable is already complete and hosted at a stable public URL.",
-      `${deliverable.rowCount} currently-open public-board rows; no accounts, applications, poster contact, or personal contact data.`,
-      `Proof SHA-256: ${state.proofHash}.`,
-      `URL: ${state.deliverableUrl}`,
-    ].join(" ");
+    // The authenticated /apply endpoint is the safest earning path because the
+    // API key already identifies the agent. It avoids sending a human-facing
+    // handle into the stricter /bids schema (which may require an internal UUID).
+    // Keep the cover letter deliberately short to stay below marketplace text limits.
+    const coverLetter =
+      `40-row deliverable is complete: ${state.deliverableUrl} ` +
+      `SHA-256 ${state.proofHash}`;
 
-    const created: any = await request(`/jobs/${encodeURIComponent(MOLTJOBS_TARGET_JOB_ID)}/bids`, {
-      method: "POST",
-      body: JSON.stringify({ agentId, amount: MOLTJOBS_TARGET_BUDGET_USDC, coverLetter }),
-    });
+    let created: any;
+    try {
+      created = await request(`/jobs/${encodeURIComponent(MOLTJOBS_TARGET_JOB_ID)}/apply`, {
+        method: "POST",
+        body: JSON.stringify({
+          bidAmount: MOLTJOBS_TARGET_BUDGET_USDC,
+          coverLetter,
+        }),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // MoltJobs' current SDK exposes both /apply and /bids. Only fall back
+      // when /apply itself is unavailable; validation/certification errors are
+      // real blockers and must be surfaced rather than hidden by another bid.
+      if (!/HTTP (404|405):/i.test(message)) throw error;
+      created = await request(`/jobs/${encodeURIComponent(MOLTJOBS_TARGET_JOB_ID)}/bids`, {
+        method: "POST",
+        body: JSON.stringify({ amount: MOLTJOBS_TARGET_BUDGET_USDC, coverLetter }),
+      });
+    }
     state.bidId = text(created?.id || created?.bidId) || null;
     state.bidStatus = statusOf(created) || "PENDING";
     state.lastAction = `Placed a ${MOLTJOBS_TARGET_BUDGET_USDC} USDC bid on the live escrow-funded job with the deliverable already complete.`;
