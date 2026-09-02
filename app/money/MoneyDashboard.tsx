@@ -403,12 +403,33 @@ export default function MoneyDashboard() {
         <Section title="Kalshi paper evidence" kicker="NOT REAL MONEY">
           <div style={gridStyle}>
             <Metric
+              label="SCHEDULED REWARD INVENTORY · AVG 24H"
+              value={money(scoreboard?.scheduledGross24hAverageUsd)}
+              sub="Actual modeled share of reward dollars scheduled over the next 24 hours across the corrected evidence window."
+              emphasis
+            />
+            <Metric
+              label="SCHEDULED REWARD INVENTORY · MIN 24H"
+              value={money(scoreboard?.scheduledGross24hMinUsd)}
+            />
+            <Metric
+              label="SCHEDULED REWARD INVENTORY · MAX 24H"
+              value={money(scoreboard?.scheduledGross24hMaxUsd)}
+            />
+            <Metric
+              label="LATEST SCHEDULED REWARD · 24H"
+              value={money(kalshi?.last?.scheduledGross24h)}
+            />
+          </div>
+
+          <div style={{ ...gridStyle, marginTop: 12 }}>
+            <Metric
               label="MODELED NET / DAY"
               value={money(scoreboard?.paperNetRunRateUsdPerDay)}
               sub="Only meaningful after enough persistent evidence."
             />
             <Metric
-              label="MODELED REWARDS / DAY"
+              label="CORRECTED REWARDS / DAY"
               value={money(scoreboard?.paperRewardRunRateUsdPerDay)}
             />
             <Metric
@@ -452,8 +473,8 @@ export default function MoneyDashboard() {
 
           <div style={{ ...gridStyle, marginTop: 12 }}>
             <Metric
-              label="LAST SNAPSHOT · SCHEDULED GROSS 24H"
-              value={money(kalshi?.last?.scheduledGross24h)}
+              label="PAPER WINDOW · CUMULATIVE NET"
+              value={money(kalshi?.cumulativePaperNetUsd, 4)}
             />
             <Metric
               label="LAST SNAPSHOT · CAPITAL"

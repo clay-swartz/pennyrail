@@ -29,7 +29,7 @@ type CompactQuote = {
   os: number;
   yd: number;
   nd: number;
-  rr: number;
+  ru: number;
   rpStart: string | null;
   rpEnd: string | null;
 };
@@ -491,7 +491,7 @@ function buildCompactQuotes(model: any): CompactQuote[] {
     os: Math.max(0, num(row?.baseline25PctTarget?.orderSize)),
     yd: Math.max(0, num(row?.market?.yesBookDepth)),
     nd: Math.max(0, num(row?.market?.noBookDepth)),
-    rr: Math.max(0, num(row?.baseline25PctTarget?.continuousRunRateUsdPerDay)),
+    ru: Math.max(0, num(row?.baseline25PctTarget?.estimatedRewardThisPeriodUsd)),
     rpStart: row?.rewardPeriod?.start ? String(row.rewardPeriod.start) : null,
     rpEnd: row?.rewardPeriod?.end ? String(row.rewardPeriod.end) : null,
   })).filter((row: CompactQuote) => Boolean(row.t));
@@ -516,15 +516,35 @@ function rewardForInterval(
   intervalEndMs: number,
 ) {
   return quotes.reduce((sum, row) => {
-    if (row.rr <= 0) return sum;
-    const minutes = intervalOverlapMinutes(
-      row.rpStart,
-      row.rpEnd,
-      intervalStartMs,
-      intervalEndMs,
+    if (row.ru <= 0 || !row.rpStart || !row.rpEnd) return sum;
+
+    const periodStartMs = Date.parse(row.rpStart);
+    const periodEndMs = Date.parse(row.rpEnd);
+    if (
+      !Number.isFinite(periodStartMs) ||
+      !Number.isFinite(periodEndMs) ||
+      periodEndMs <= periodStartMs
+    ) {
+      return sum;
+    }
+
+    const overlapMs = Math.max(
+      0,
+      Math.min(periodEndMs, intervalEndMs) -
+        Math.max(periodStartMs, intervalStartMs),
     );
-    return sum + row.rr * (minutes / 1440);
+    if (overlapMs <= 0) return sum;
+
+    return sum + row.ru * (overlapMs / (periodEndMs - periodStartMs));
   }, 0);
+}
+
+function quoteRewardRatePerMs(row: CompactQuote) {
+  if (row.ru <= 0 || !row.rpStart || !row.rpEnd) return 0;
+  const start = Date.parse(row.rpStart);
+  const end = Date.parse(row.rpEnd);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
+  return row.ru / (end - start);
 }
 
 async function estimateTradeInterval(
@@ -660,6 +680,7 @@ function updateTickerStats(
   model: any,
   intervalReward: number,
   trade: any,
+  rewardQuotes: CompactQuote[],
 ) {
   const map = new Map(
     state.kalshi.tickers.map(row => [row.t, { ...row }]),
@@ -668,12 +689,6 @@ function updateTickerStats(
   const selected = Array.isArray(model?.topPaperPortfolio)
     ? model.topPaperPortfolio
     : [];
-
-  const rewardDenominator = selected.reduce(
-    (sum: number, row: any) =>
-      sum + Math.max(0, num(row?.baseline25PctTarget?.continuousRunRateUsdPerDay)),
-    0,
-  );
 
   for (const row of selected) {
     const ticker = String(row?.ticker || "");
@@ -690,13 +705,33 @@ function updateTickerStats(
 
     current.seen += 1;
     current.selected += 1;
-
-    const rr = Math.max(0, num(row?.baseline25PctTarget?.continuousRunRateUsdPerDay));
-    if (rewardDenominator > 0) {
-      current.reward += intervalReward * (rr / rewardDenominator);
-    }
-
     map.set(ticker, current);
+  }
+
+  const rates = rewardQuotes.map(row => ({
+    row,
+    rate: quoteRewardRatePerMs(row),
+  }));
+  const rewardDenominator = rates.reduce(
+    (sum, entry) => sum + entry.rate,
+    0,
+  );
+
+  if (intervalReward > 0 && rewardDenominator > 0) {
+    for (const entry of rates) {
+      if (entry.rate <= 0) continue;
+      const ticker = entry.row.t;
+      const current = map.get(ticker) || {
+        t: ticker,
+        seen: 0,
+        selected: 0,
+        reward: 0,
+        possibleFill: 0,
+        netTrade: 0,
+      };
+      current.reward += intervalReward * (entry.rate / rewardDenominator);
+      map.set(ticker, current);
+    }
   }
 
   for (const row of trade?.byTicker || []) {
@@ -912,6 +947,54 @@ export async function runAutopilotTick(
     ];
   }
 
+  const scheduledRewardMigration = "v64-scheduled-period-reward";
+  if (!(state.migrations || []).includes(scheduledRewardMigration)) {
+    state.startedAt = new Date().toISOString();
+    state.kalshi.samples = 0;
+    state.kalshi.gateHits = 0;
+    state.kalshi.gross24hSum = 0;
+    state.kalshi.gross24hMin = null;
+    state.kalshi.gross24hMax = 0;
+    state.kalshi.capitalSum = 0;
+    state.kalshi.capitalMax = 0;
+    state.kalshi.rewardAccrued = 0;
+    state.kalshi.tradeGross = 0;
+    state.kalshi.makerFees = 0;
+    state.kalshi.exitFees = 0;
+    state.kalshi.tradeNet = 0;
+    state.kalshi.totalNet = 0;
+    state.kalshi.peakTotalNet = 0;
+    state.kalshi.maxDrawdown = 0;
+    state.kalshi.tradeIntervals = 0;
+    state.kalshi.tradeIntervalsWithPossibleFill = 0;
+    state.kalshi.selectedMarketCountSum = 0;
+    state.kalshi.tickers = [];
+    state.kalshi.previousQuotes = [];
+    state.kalshi.last = {
+      scheduledGross24h: 0,
+      capital: 0,
+      marketCount: 0,
+      targetReached: false,
+      generatedAt: null,
+    };
+    state.gate = {
+      elapsedHours: 0,
+      expectedSamples: 0,
+      coverage: 0,
+      gateHitRate: 0,
+      paperNetRunRateUsdPerDay: null,
+      paperRewardRunRateUsdPerDay: null,
+      paperTradeRunRateUsdPerDay: null,
+      evidence24hComplete: false,
+      liveCapitalReady: false,
+      reason: "Corrected scheduled-reward evidence window is starting.",
+    };
+    state.migrations = [
+      ...(state.migrations || []),
+      scheduledRewardMigration,
+    ];
+  }
+
   if (state.lastSlot >= slot) {
     return {
       ok: true,
@@ -1045,7 +1128,13 @@ export async function runAutopilotTick(
       state.kalshi.peakTotalNet - state.kalshi.totalNet,
     );
 
-    updateTickerStats(state, model, intervalReward, trade);
+    updateTickerStats(
+      state,
+      model,
+      intervalReward,
+      trade,
+      state.kalshi.previousQuotes,
+    );
 
     state.kalshi.previousQuotes = currentQuotes;
     state.kalshi.last = {
@@ -1108,6 +1197,18 @@ export async function runAutopilotTick(
       paperTradeRunRateUsdPerDay: state.gate.paperTradeRunRateUsdPerDay,
       paperSamples: state.kalshi.samples,
       paperCoverage: state.gate.coverage,
+      scheduledGross24hAverageUsd:
+        state.kalshi.samples > 0
+          ? Number((state.kalshi.gross24hSum / state.kalshi.samples).toFixed(2))
+          : null,
+      scheduledGross24hMinUsd:
+        state.kalshi.gross24hMin == null
+          ? null
+          : Number(state.kalshi.gross24hMin.toFixed(2)),
+      scheduledGross24hMaxUsd:
+        state.kalshi.samples > 0
+          ? Number(state.kalshi.gross24hMax.toFixed(2))
+          : null,
       liveCapitalReady: state.gate.liveCapitalReady,
     },
     kalshi: {
@@ -1192,6 +1293,18 @@ export async function autopilotStatus() {
       paperSamples: state.kalshi.samples,
       paperGateHitRate: state.gate.gateHitRate,
       paperCoverage: state.gate.coverage,
+      scheduledGross24hAverageUsd:
+        state.kalshi.samples > 0
+          ? Number((state.kalshi.gross24hSum / state.kalshi.samples).toFixed(2))
+          : null,
+      scheduledGross24hMinUsd:
+        state.kalshi.gross24hMin == null
+          ? null
+          : Number(state.kalshi.gross24hMin.toFixed(2)),
+      scheduledGross24hMaxUsd:
+        state.kalshi.samples > 0
+          ? Number(state.kalshi.gross24hMax.toFixed(2))
+          : null,
       liveCapitalReady: state.gate.liveCapitalReady,
       gateReason: state.gate.reason,
     },
