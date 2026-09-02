@@ -57,6 +57,17 @@ export default function PermitRailPage({ searchParams }: { searchParams?: Promis
         ))}
       </section>
 
+      <section style={{ marginBottom: 46 }}>
+        <h2>Live market pages</h2>
+        <p style={{ color: "#625d54", lineHeight: 1.55, maxWidth: 720 }}>Browse continuously refreshed samples by market and trade. These same pages are used by PermitRail's acquisition engine to show contractors concrete demand before asking them to subscribe.</p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {[
+            ["fortworth", "electrical"], ["fortworth", "hvac"], ["arlington", "electrical"],
+            ["arlington", "hvac"], ["dallas", "restoration"], ["dallas", "excavation"],
+          ].map(([city, trade]) => <a key={`${city}:${trade}`} href={`/permitrail/market/${city}/${trade}`} style={{ padding: "10px 14px", borderRadius: 999, border: "1px solid #cfc8bb", color: "#191713", textDecoration: "none", fontWeight: 700 }}>{cityLabels[city] || titleCase(city)} · {titleCase(trade)}</a>)}
+        </div>
+      </section>
+
       <section style={{ borderTop: "1px solid #ddd5c8", paddingTop: 32, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 24 }}>
         <div><h3>What it watches</h3><p style={{ color: "#625d54", lineHeight: 1.55 }}>Live Fort Worth development permits, Arlington issued permits, Dallas right-of-way permits, and fresh Dallas municipal distress signals. New jurisdictions can plug into the same normalizer.</p></div>
         <div><h3>What it adds</h3><p style={{ color: "#625d54", lineHeight: 1.55 }}>Trade inference, adjacent-trade opportunity mapping, recency scoring, project-value weighting, urgency, deduplication and source evidence.</p></div>
