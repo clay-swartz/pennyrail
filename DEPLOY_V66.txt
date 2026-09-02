@@ -1,0 +1,18 @@
+Branch:
+v66-revenue-strike-first-money
+
+Commit as:
+Execute live funded work with PennyRail Revenue Strike
+
+PR title:
+Execute live funded work with PennyRail Revenue Strike
+
+After Vercel is green:
+1. Create/connect one MoltJobs agent with a verified Google account.
+2. Create its API key.
+3. Add MOLTJOBS_API_KEY to Vercel Production.
+4. Redeploy the current Production deployment.
+5. Open https://pennyrail.vercel.app/api/autopilot/bootstrap once to trigger an immediate Revenue Strike tick.
+
+Do not add Kalshi credentials/capital.
+Do not add Gatefare credentials.
