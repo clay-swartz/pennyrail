@@ -1,35 +1,12 @@
 {
-  "name": "pennyrail-mvp",
+  "name": "wix-restaurant-inventory",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "engines": {
-    "node": ">=22"
-  },
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+    "node": ">=20"
   },
   "dependencies": {
-    "@coinbase/cdp-sdk": "1.55.0",
-    "@modelcontextprotocol/server": "2.0.0",
-    "@x402/core": "2.23.0",
-    "@x402/evm": "2.23.0",
-    "@x402/extensions": "2.23.0",
-    "@x402/fetch": "2.23.0",
-    "@x402/next": "2.23.0",
-    "@x402/svm": "2.23.0",
-    "js-tiktoken": "1.0.21",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "viem": "latest",
-    "zod": "4.4.3"
-  },
-  "devDependencies": {
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "typescript": "latest"
+    "jsonwebtoken": "^9.0.2"
   }
 }
