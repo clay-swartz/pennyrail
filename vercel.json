@@ -1,7 +1,14 @@
 {
-  "functions": {
-    "api/*.js": {
-      "maxDuration": 30
+  "rewrites": [
+    {
+      "source": "/.well-known/x402",
+      "destination": "/api/x402-manifest"
     }
-  }
+  ],
+  "crons": [
+    {
+      "path": "/api/autopilot/bootstrap",
+      "schedule": "17 3 * * *"
+    }
+  ]
 }
