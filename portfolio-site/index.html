@@ -93,6 +93,51 @@ nav{height:66px;position:sticky;top:0;z-index:50;background:rgba(255,253,250,.96
 .project:hover .phone:first-child{transform:rotate(-1.5deg) translateY(5px)}.project:hover .phone:last-child{transform:rotate(1.5deg) translateY(-3px)}
 .phone img{width:100%;border-radius:18px;aspect-ratio:9/16;object-fit:cover;object-position:top}
 
+
+.work-heading-row{display:flex;justify-content:space-between;gap:28px;align-items:flex-end;margin-bottom:30px}
+#work .section-title{margin-bottom:10px}
+.work-intro{margin:0;max-width:620px;color:var(--muted);font-size:14px;line-height:1.55}
+.project{cursor:default}
+.project-link{border:0;background:none;padding:0;color:var(--ink);font:inherit;cursor:pointer}
+.project-link:hover .arrow,.project-link:focus-visible .arrow{transform:translateX(4px)}
+.project-link:focus-visible{outline:2px solid var(--yellow);outline-offset:5px;border-radius:2px}
+.case-dialog{width:min(1040px,calc(100% - 32px));max-height:min(90vh,900px);padding:0;border:0;border-radius:22px;background:var(--surface);color:var(--ink);box-shadow:0 32px 80px rgba(18,17,15,.28);overflow:auto}
+.case-dialog::backdrop{background:rgba(18,17,15,.58);backdrop-filter:blur(5px)}
+.case-shell{position:relative;padding:46px}
+.case-close{position:sticky;float:right;top:18px;z-index:5;width:38px;height:38px;margin:-26px -26px 0 0;border:1px solid rgba(18,17,15,.12);border-radius:50%;background:rgba(255,253,250,.95);color:var(--ink);font-size:24px;line-height:1;cursor:pointer}
+.case-head{max-width:790px;padding-right:46px}
+.case-head h2{margin:18px 0 14px;font-size:clamp(38px,5vw,64px);line-height:.98;letter-spacing:-.05em}
+.case-head>p{margin:0;color:var(--muted);font-size:17px;line-height:1.58;max-width:720px}
+.case-meta{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:20px;color:#77736b;font-size:11.5px}
+.case-story-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:36px}
+.case-story-grid section{padding:22px;border:1px solid rgba(25,24,21,.11);border-radius:14px;background:#faf8f2}
+.case-story-grid span{display:block;margin-bottom:9px;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7b766d}
+.case-story-grid p{margin:0;color:#4f4d48;font-size:13.5px;line-height:1.58}
+.case-gallery{margin-top:18px;border-radius:17px;overflow:hidden;background:#eee9dd;border:1px solid rgba(25,24,21,.10)}
+.case-track{display:flex;transition:transform .42s cubic-bezier(.2,.8,.2,1);will-change:transform}
+.case-slide{flex:0 0 100%;min-height:430px;padding:44px;display:flex;align-items:center;justify-content:center}
+.case-slide-image{background:#e7dfcf}
+.case-slide-image.paypal-slide{background:var(--blue)}
+.case-slide-image.ypo-slide{background:var(--ypo)}
+.case-slide-image.scout-slide{background:var(--sage)}
+.case-browser{max-width:790px;transform:none}
+.case-slide-note{background:#f1ece0;text-align:left}
+.case-slide-note.blue{background:#dbe8f6}
+.case-slide-note.dark{background:#151513;color:#fffdfa}
+.case-slide-note.ypo-note{background:#0b3555;color:#fff}
+.case-slide-note.sage{background:#e6e7df}
+.case-slide-note>div{max-width:700px}
+.case-slide-note small{display:block;margin-bottom:18px;font-size:11px;font-weight:800;letter-spacing:.11em}
+.case-slide-note strong{display:block;font-size:clamp(32px,5vw,56px);line-height:1;letter-spacing:-.05em;max-width:760px}
+.case-slide-note p{margin:22px 0 0;max-width:620px;font-size:16px;line-height:1.6;color:inherit;opacity:.78}
+.case-phone-stack{max-width:600px}
+.case-gallery-controls{display:grid;grid-template-columns:42px 1fr 42px;align-items:center;padding:11px 14px;background:var(--surface);border-top:1px solid rgba(25,24,21,.10)}
+.case-gallery-controls button{width:36px;height:36px;border:1px solid rgba(25,24,21,.12);border-radius:50%;background:#fffdfa;color:var(--ink);font-size:16px;cursor:pointer}
+.case-dots{display:flex;justify-content:center;gap:6px}
+.case-dot{width:7px;height:7px;border:0;border-radius:50%;padding:0;background:#cbc5ba;cursor:pointer}
+.case-dot.active{background:var(--ink)}
+body.dialog-open{overflow:hidden}
+
 footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
 .footer{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .footer a:hover{color:var(--ink)}
@@ -105,7 +150,19 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
   .project,.project.reverse{grid-template-columns:1fr}.project-visual,.project.reverse .project-visual{order:1;min-height:390px}.project-meta,.project.reverse .project-meta{order:2;min-height:330px}
 }
 @media(max-width:760px){
-  .wrap{width:min(var(--max),calc(100% - 28px))}.email-full{display:none}.email-short{display:inline}
+  .wrap{width:min(var(--max),calc(100% - 28px))}
+  .work-heading-row{margin-bottom:24px}
+  .case-shell{padding:28px 18px 24px}
+  .case-close{margin:-14px -4px 0 0}
+  .case-head{padding-right:32px}
+  .case-head>p{font-size:15px}
+  .case-story-grid{grid-template-columns:1fr;margin-top:26px}
+  .case-story-grid section{padding:18px}
+  .case-slide{min-height:330px;padding:24px 18px}
+  .case-slide-note strong{font-size:clamp(30px,10vw,44px)}
+  .case-slide-note p{font-size:14px}
+  .case-gallery{margin-top:14px}
+  .case-dialog{width:calc(100% - 18px);max-height:94vh}.email-full{display:none}.email-short{display:inline}
   .hero{padding:48px 0 54px}.hero h1{font-size:clamp(40px,11vw,58px);max-width:none}
   #experience{padding:38px 0 44px}.section-title{margin-bottom:22px}
   .career-grid{grid-template-columns:1fr 1fr;gap:10px}.career-item{min-height:144px;padding:15px}.career-item.rocket{grid-column:1/3}.career-item:last-child{grid-column:auto}.career-top{margin-bottom:16px}.career-item h3{font-size:16px}.career-item.rocket h3{font-size:22px}
@@ -170,10 +227,15 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
 
 <section id="work">
   <div class="wrap">
-    <h2 class="section-title">Selected work</h2>
-    <div class="work-list">
+    <div class="work-heading-row">
+      <div>
+        <h2 class="section-title">Selected work</h2>
+        <p class="work-intro">A few examples of the kinds of complex products and systems I’ve helped make easier to understand and use.</p>
+      </div>
+    </div>
 
-      <a class="project" href="https://www.rocketpro.com/rocket-pro-navigate" target="_blank" rel="noreferrer">
+    <div class="work-list">
+      <article class="project" data-project-card="rocket">
         <div class="project-visual rocket">
           <div class="browser">
             <div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div>
@@ -182,12 +244,12 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
         </div>
         <div class="project-meta">
           <div class="company"><img class="logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Frocket_logo.jpg&amp;w=96" alt="Rocket"><span>Rocket</span></div>
-          <div class="project-copy"><h3>Rocket Pro Navigate</h3><p>Design leadership across banker and realtor workflows, portal redesign and AI agent experiences.</p><div class="project-tags"><span class="project-tag">Design leadership</span><span class="project-tag">B2B workflows</span><span class="project-tag">AI agents</span></div></div>
-          <div class="project-foot"><span class="project-role">AVP, Product Design · 2023 to present</span><span class="project-link">View project <span class="arrow">↗</span></span></div>
+          <div class="project-copy"><h3>Rocket Pro Navigate</h3><p>I lead design across banker and realtor workflows, platform modernization and emerging AI experiences.</p><div class="project-tags"><span class="project-tag">Design leadership</span><span class="project-tag">B2B workflows</span><span class="project-tag">AI agents</span></div></div>
+          <div class="project-foot"><span class="project-role">AVP, Product Design · 2023 to present</span><button class="project-link" type="button" data-open-project="rocket">View project <span class="arrow">→</span></button></div>
         </div>
-      </a>
+      </article>
 
-      <a class="project reverse" href="https://developer.paypal.com/platforms/checkout/standard/best-practices" target="_blank" rel="noreferrer">
+      <article class="project reverse" data-project-card="paypal">
         <div class="project-visual paypal">
           <div class="browser">
             <div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div>
@@ -196,12 +258,12 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
         </div>
         <div class="project-meta">
           <div class="company"><img class="logo" src="https://www.paypalobjects.com/webstatic/icon/pp258.png" alt="PayPal"><span>PayPal</span></div>
-          <div class="project-copy"><h3>Merchant checkout</h3><p>Product design across merchant payment, checkout and account experiences in high-trust financial workflows.</p><div class="project-tags"><span class="project-tag">Checkout</span><span class="project-tag">Payments</span><span class="project-tag">Design systems</span></div></div>
-          <div class="project-foot"><span class="project-role">Sr. Product Designer, Merchant · 2022 to 2023</span><span class="project-link">View project <span class="arrow">↗</span></span></div>
+          <div class="project-copy"><h3>Merchant checkout</h3><p>I designed merchant payment, checkout and account experiences where clarity and trust really matter.</p><div class="project-tags"><span class="project-tag">Checkout</span><span class="project-tag">Payments</span><span class="project-tag">Design systems</span></div></div>
+          <div class="project-foot"><span class="project-role">Sr. Product Designer, Merchant · 2022 to 2023</span><button class="project-link" type="button" data-open-project="paypal">View project <span class="arrow">→</span></button></div>
         </div>
-      </a>
+      </article>
 
-      <a class="project" href="https://apps.apple.com/us/app/ypo-connect/id1341679808" target="_blank" rel="noreferrer">
+      <article class="project" data-project-card="ypo">
         <div class="project-visual ypo">
           <div class="phone-stack" aria-label="YPO Connect product screens">
             <div class="phone"><img src="https://apprecs.org/gp/img/screenshots/webp/900/com.ypo.connect/AyF7J9t6cnywOZGDAb473R1QqSxoQRsUidFyY_t51vo-screenshot-2" alt="YPO Connect member directory"></div>
@@ -210,12 +272,12 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
         </div>
         <div class="project-meta">
           <div class="company"><img class="logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fypoglobal_logo.jpeg&amp;w=96" alt="YPO"><span>YPO</span></div>
-          <div class="project-copy"><h3>Global member platform</h3><p>Product design for member discovery, events, networking and content across web and mobile.</p><div class="project-tags"><span class="project-tag">Web + mobile</span><span class="project-tag">Discovery</span><span class="project-tag">Events</span></div></div>
-          <div class="project-foot"><span class="project-role">UX Designer · 2017 to 2022</span><span class="project-link">View project <span class="arrow">↗</span></span></div>
+          <div class="project-copy"><h3>Global member platform</h3><p>I designed across web and mobile experiences for member discovery, events, networking and content.</p><div class="project-tags"><span class="project-tag">Web + mobile</span><span class="project-tag">Discovery</span><span class="project-tag">Events</span></div></div>
+          <div class="project-foot"><span class="project-role">UX Designer · 2017 to 2022</span><button class="project-link" type="button" data-open-project="ypo">View project <span class="arrow">→</span></button></div>
         </div>
-      </a>
+      </article>
 
-      <a class="project reverse" href="https://my.scouting.org/" target="_blank" rel="noreferrer">
+      <article class="project reverse" data-project-card="scout">
         <div class="project-visual scout">
           <div class="browser">
             <div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div>
@@ -224,16 +286,114 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
         </div>
         <div class="project-meta">
           <div class="company"><img class="logo scout" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fscouting_america_logo.jpeg&amp;w=96" alt="Scouting America"><span>Scouting</span></div>
-          <div class="project-copy"><h3>Member + volunteer tools</h3><p>UX content and service design for training, account and program workflows.</p><div class="project-tags"><span class="project-tag">Training</span><span class="project-tag">Accounts</span><span class="project-tag">Service UX</span></div></div>
-          <div class="project-foot"><span class="project-role">UX Writer · 2012 to 2017</span><span class="project-link">View project <span class="arrow">↗</span></span></div>
+          <div class="project-copy"><h3>Member + volunteer tools</h3><p>I worked across UX content and service design for training, account and program workflows.</p><div class="project-tags"><span class="project-tag">Training</span><span class="project-tag">Accounts</span><span class="project-tag">Service UX</span></div></div>
+          <div class="project-foot"><span class="project-role">UX Writer · 2012 to 2017</span><button class="project-link" type="button" data-open-project="scout">View project <span class="arrow">→</span></button></div>
         </div>
-      </a>
-
+      </article>
     </div>
   </div>
 </section>
 </main>
 
+<dialog class="case-dialog" id="case-rocket" aria-labelledby="case-rocket-title">
+  <div class="case-shell">
+    <button class="case-close" type="button" aria-label="Close project">×</button>
+    <div class="case-head">
+      <div class="company"><img class="logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Frocket_logo.jpg&amp;w=96" alt=""><span>Rocket</span></div>
+      <h2 id="case-rocket-title">Rocket Pro Navigate</h2>
+      <p>I lead product design across a B2B mortgage platform used by bankers and real estate professionals. The work spans core workflows, platform modernization and emerging AI experiences.</p>
+      <div class="case-meta"><span>AVP, Product Design</span><span>2023 to present</span></div>
+    </div>
+    <div class="case-story-grid">
+      <section><span>The complexity</span><p>Mortgage work has a lot of roles, handoffs and decisions happening at once. My job is to help make those workflows feel coherent instead of exposing all of that complexity to the person using the product.</p></section>
+      <section><span>What I lead</span><p>I lead design direction across core banker and realtor workflows, portal redesign and AI agent experiences, partnering closely with product, engineering and business teams.</p></section>
+      <section><span>What I care about</span><p>I’m always looking for the clearest path through the system: fewer dead ends, stronger hierarchy, better consistency and AI that actually helps move the work forward.</p></section>
+    </div>
+    <div class="case-gallery" data-gallery>
+      <div class="case-track">
+        <div class="case-slide case-slide-image"><div class="browser case-browser"><div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div><img src="https://www.rocketpro.com/_next/image?q=100&amp;url=%2Fapi%2Fmedia%2Ffile%2Frocketpro-portal-homepage.png&amp;w=1290" alt="Rocket Pro Navigate portal"></div></div>
+        <div class="case-slide case-slide-note"><div><small>MY ROLE</small><strong>Bring structure to a complicated B2B platform.</strong><p>I help teams align around the experience, connect related workflows and make the product feel like one system instead of a collection of features.</p></div></div>
+        <div class="case-slide case-slide-note dark"><div><small>AI + PRODUCT</small><strong>Useful before impressive.</strong><p>I’m interested in AI when it reduces effort, surfaces the right information or helps someone take the next action—not when it simply adds another layer to learn.</p></div></div>
+      </div>
+      <div class="case-gallery-controls"><button type="button" data-prev aria-label="Previous slide">←</button><div class="case-dots"></div><button type="button" data-next aria-label="Next slide">→</button></div>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="case-dialog" id="case-paypal" aria-labelledby="case-paypal-title">
+  <div class="case-shell">
+    <button class="case-close" type="button" aria-label="Close project">×</button>
+    <div class="case-head">
+      <div class="company"><img class="logo" src="https://www.paypalobjects.com/webstatic/icon/pp258.png" alt=""><span>PayPal</span></div>
+      <h2 id="case-paypal-title">Merchant checkout</h2>
+      <p>I designed merchant payment, checkout and account experiences in a space where even small moments of confusion can quickly become a trust problem.</p>
+      <div class="case-meta"><span>Sr. Product Designer, Merchant</span><span>2022 to 2023</span></div>
+    </div>
+    <div class="case-story-grid">
+      <section><span>The complexity</span><p>Checkout has to balance merchant needs, customer confidence, payment rules and a lot of edge cases without making any of that feel heavy.</p></section>
+      <section><span>What I worked on</span><p>I worked across merchant payment, checkout and account experiences, using shared patterns and design-system thinking to make high-trust workflows clearer and more consistent.</p></section>
+      <section><span>What I cared about</span><p>Reducing friction without reducing confidence—clear choices, understandable states and a path forward that feels obvious when money is involved.</p></section>
+    </div>
+    <div class="case-gallery" data-gallery>
+      <div class="case-track">
+        <div class="case-slide case-slide-image paypal-slide"><div class="browser case-browser"><div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div><img src="https://www.paypalobjects.com/devdoc/best-practices/screenshot_one-time-payments_one-click_combined.png" alt="PayPal checkout experience"></div></div>
+        <div class="case-slide case-slide-note blue"><div><small>DESIGN PRINCIPLE</small><strong>Trust is part of the interface.</strong><p>Payment experiences have to explain enough to build confidence while staying out of the way of the task someone came to complete.</p></div></div>
+        <div class="case-slide case-slide-note"><div><small>SYSTEMS THINKING</small><strong>Consistency lowers the cognitive load.</strong><p>I look for patterns that can work across related flows so merchants don’t have to relearn the product every time the context changes.</p></div></div>
+      </div>
+      <div class="case-gallery-controls"><button type="button" data-prev aria-label="Previous slide">←</button><div class="case-dots"></div><button type="button" data-next aria-label="Next slide">→</button></div>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="case-dialog" id="case-ypo" aria-labelledby="case-ypo-title">
+  <div class="case-shell">
+    <button class="case-close" type="button" aria-label="Close project">×</button>
+    <div class="case-head">
+      <div class="company"><img class="logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fypoglobal_logo.jpeg&amp;w=96" alt=""><span>YPO</span></div>
+      <h2 id="case-ypo-title">Global member platform</h2>
+      <p>I designed across YPO’s web and mobile member experience, including discovery, events, networking and content for a global community.</p>
+      <div class="case-meta"><span>UX Designer</span><span>2017 to 2022</span></div>
+    </div>
+    <div class="case-story-grid">
+      <section><span>The complexity</span><p>A global membership platform has a lot of different reasons to exist at once. The challenge was helping members move naturally between people, events, content and the things happening around them.</p></section>
+      <section><span>What I worked on</span><p>I designed member discovery, events, networking and content experiences across web and mobile, thinking about how those parts connected rather than treating them as separate destinations.</p></section>
+      <section><span>What I cared about</span><p>Making a large ecosystem feel personal. The platform needed to help a member find the right person, event or opportunity without feeling like they were searching through an organization chart.</p></section>
+    </div>
+    <div class="case-gallery" data-gallery>
+      <div class="case-track">
+        <div class="case-slide case-slide-image ypo-slide"><div class="phone-stack case-phone-stack"><div class="phone"><img src="https://apprecs.org/gp/img/screenshots/webp/900/com.ypo.connect/AyF7J9t6cnywOZGDAb473R1QqSxoQRsUidFyY_t51vo-screenshot-2" alt="YPO Connect member directory"></div><div class="phone"><img src="https://apprecs.org/gp/img/screenshots/webp/900/com.ypo.connect/AyF7J9t6cnywOZGDAb473R1QqSxoQRsUidFyY_t51vo-screenshot-3" alt="YPO Connect Around Me"></div></div></div>
+        <div class="case-slide case-slide-note ypo-note"><div><small>CONNECTED EXPERIENCE</small><strong>People, places and content should feel like one product.</strong><p>I focused on helping members move between discovery, events and networking without losing context along the way.</p></div></div>
+        <div class="case-slide case-slide-note"><div><small>GLOBAL PRODUCT</small><strong>Useful at a global scale. Personal at the individual level.</strong><p>The best member experience still has to feel relevant to the person opening the app right now.</p></div></div>
+      </div>
+      <div class="case-gallery-controls"><button type="button" data-prev aria-label="Previous slide">←</button><div class="case-dots"></div><button type="button" data-next aria-label="Next slide">→</button></div>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="case-dialog" id="case-scout" aria-labelledby="case-scout-title">
+  <div class="case-shell">
+    <button class="case-close" type="button" aria-label="Close project">×</button>
+    <div class="case-head">
+      <div class="company"><img class="logo scout" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fscouting_america_logo.jpeg&amp;w=96" alt=""><span>Scouting America</span></div>
+      <h2 id="case-scout-title">Member + volunteer tools</h2>
+      <p>I worked in UX content and service design across training, account and program workflows used by members and volunteers.</p>
+      <div class="case-meta"><span>UX Writer</span><span>2012 to 2017</span></div>
+    </div>
+    <div class="case-story-grid">
+      <section><span>The complexity</span><p>Volunteer-driven systems have to work for people with very different levels of experience, time and technical confidence. The product can’t assume everyone already knows how the organization works.</p></section>
+      <section><span>What I worked on</span><p>I worked across training, account and program workflows, using UX content and service-design thinking to make instructions, decisions and next steps easier to understand.</p></section>
+      <section><span>What I cared about</span><p>Good content is product design. Clear language, useful structure and the right information at the right moment can remove as much friction as a redesigned screen.</p></section>
+    </div>
+    <div class="case-gallery" data-gallery>
+      <div class="case-track">
+        <div class="case-slide case-slide-image scout-slide"><div class="browser case-browser"><div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div><img src="https://www.troopwebhost.com/Images/MyScoutingTrainingDashboardAddSearch.png" alt="my.Scouting Training Manager"></div></div>
+        <div class="case-slide case-slide-note"><div><small>CONTENT AS DESIGN</small><strong>Words are part of the workflow.</strong><p>I use content to reduce uncertainty, explain what matters and make the next action easier to understand—especially in systems people may only use occasionally.</p></div></div>
+        <div class="case-slide case-slide-note sage"><div><small>SERVICE UX</small><strong>Design for the person who doesn’t know the system.</strong><p>When a product supports volunteers, the experience has to help people succeed without requiring them to become experts in the organization first.</p></div></div>
+      </div>
+      <div class="case-gallery-controls"><button type="button" data-prev aria-label="Previous slide">←</button><div class="case-dots"></div><button type="button" data-next aria-label="Next slide">→</button></div>
+    </div>
+  </div>
+</dialog>
 <footer>
   <div class="wrap footer"><span>Clay Swartz</span><a href="mailto:clayton.swartz@gmail.com">Email</a></div>
 </footer>
@@ -253,6 +413,52 @@ if (window.matchMedia("(hover:hover) and (pointer:fine)").matches) {
     });
   });
 }
+
+document.querySelectorAll("[data-open-project]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const dialog = document.getElementById("case-" + button.dataset.openProject);
+    if (!dialog) return;
+    dialog.showModal();
+    document.body.classList.add("dialog-open");
+  });
+});
+
+document.querySelectorAll(".case-dialog").forEach((dialog) => {
+  dialog.querySelector(".case-close")?.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+  dialog.addEventListener("close", () => document.body.classList.remove("dialog-open"));
+});
+
+document.querySelectorAll("[data-gallery]").forEach((gallery) => {
+  const track = gallery.querySelector(".case-track");
+  const slides = [...gallery.querySelectorAll(".case-slide")];
+  const dotsWrap = gallery.querySelector(".case-dots");
+  const prev = gallery.querySelector("[data-prev]");
+  const next = gallery.querySelector("[data-next]");
+  let index = 0;
+
+  slides.forEach((_, i) => {
+    const dot = document.createElement("button");
+    dot.className = "case-dot" + (i === 0 ? " active" : "");
+    dot.type = "button";
+    dot.setAttribute("aria-label", "Go to slide " + (i + 1));
+    dot.addEventListener("click", () => show(i));
+    dotsWrap.appendChild(dot);
+  });
+
+  const dots = [...dotsWrap.querySelectorAll(".case-dot")];
+
+  function show(nextIndex) {
+    index = (nextIndex + slides.length) % slides.length;
+    track.style.transform = "translateX(-" + (index * 100) + "%)";
+    dots.forEach((dot, i) => dot.classList.toggle("active", i === index));
+  }
+
+  prev?.addEventListener("click", () => show(index - 1));
+  next?.addEventListener("click", () => show(index + 1));
+});
 </script>
 </body>
 </html>
