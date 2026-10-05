@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Clay Swartz | Product Design Leader">
+<title>Clay Swartz | Product Design Leader</title>
+<style>
+:root{
+  --paper:#f4f1e8;
+  --experience:#eeebe2;
+  --work:#faf8f2;
+  --surface:#fffdfa;
+  --ink:#12110f;
+  --muted:#65645f;
+  --yellow:#e7c44a;
+  --blue:#dbe8f6;
+  --ypo:#0b3555;
+  --sage:#e9e9e2;
+  --max:1180px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{margin:0;overflow-x:hidden;background:var(--paper);color:var(--ink);font-family:Inter,"Helvetica Neue",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.45;letter-spacing:-.012em}
+a{color:inherit;text-decoration:none}img{display:block;max-width:100%}
+.wrap{width:min(var(--max),calc(100% - 48px));margin-inline:auto;min-width:0}
+
+nav{height:66px;position:sticky;top:0;z-index:50;background:rgba(255,253,250,.96);color:var(--ink);backdrop-filter:blur(14px);border-bottom:1px solid rgba(18,17,15,.12);box-shadow:0 5px 18px rgba(18,17,15,.055)}
+.nav{height:100%;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.brand{font-size:17px;font-weight:740;letter-spacing:-.032em}
+.nav-contact{font-size:12.5px;color:var(--muted)}
+.nav-contact a:hover{color:var(--ink)}
+.email-short{display:none}
+
+.hero{background:var(--paper);padding:76px 0 82px}
+.hero h1{font-size:clamp(52px,6.15vw,82px);line-height:.995;letter-spacing:-.054em;margin:0;max-width:1050px;text-wrap:balance;font-weight:700;position:relative;z-index:2}
+.hero h1 .emphasis{display:inline-block;background:var(--yellow);padding:.015em .12em .07em;border-radius:.16em;transform:rotate(-.3deg);box-decoration-break:clone;-webkit-box-decoration-break:clone}
+
+#experience{background:var(--experience);padding:44px 0 50px}
+.section-title{font-size:clamp(30px,3.4vw,42px);line-height:1;letter-spacing:-.045em;margin:0 0 24px;font-weight:675}
+.career-grid{display:grid;grid-template-columns:2fr repeat(3,minmax(0,1fr));gap:10px;align-items:stretch}
+.career-item{min-width:0;min-height:172px;background:var(--surface);border:1px solid rgba(25,24,21,.14);border-radius:14px;padding:17px 17px 16px;display:flex;flex-direction:column;overflow:hidden}
+.career-item.rocket{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.career-company{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:780;letter-spacing:-.02em;margin-bottom:0}
+.career-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:22px}
+.career-logo{width:29px;height:29px;object-fit:contain;border-radius:7px;background:#fff;padding:3px;border:1px solid rgba(25,24,21,.1)}
+.career-logo.scout{padding:2px}
+.career-date{font-size:10px;color:#8b887f;white-space:nowrap;letter-spacing:.015em;margin:0}
+.career-item.rocket .career-date{color:#bdb8ae}
+.career-item h3{font-size:17px;line-height:1.08;letter-spacing:-.035em;margin:0 0 8px;font-weight:720;max-width:220px}
+.career-item.rocket h3{font-size:25px;max-width:330px;letter-spacing:-.045em}
+.career-focus{font-size:11.5px;line-height:1.42;color:var(--muted);margin:auto 0 0;max-width:230px}
+.career-item.rocket .career-focus{color:#c9c5bc;max-width:360px;font-size:12px}
+
+#work{background:var(--work);padding:68px 0 78px}
+#work .section-title{margin-bottom:30px}
+.work-list{display:grid;gap:22px}
+.project{display:grid;grid-template-columns:minmax(0,1.46fr) minmax(300px,.76fr);min-height:450px;border-radius:18px;overflow:hidden;background:var(--surface);transition:transform .24s cubic-bezier(.2,.8,.2,1),box-shadow .24s ease}
+.project:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(25,24,21,.08)}
+.project.reverse{grid-template-columns:minmax(300px,.76fr) minmax(0,1.46fr)}
+.project.reverse .project-visual{order:2}
+.project.reverse .project-meta{order:1}
+.project-visual{position:relative;min-width:0;overflow:hidden;padding:38px;display:flex;align-items:center;justify-content:center}
+.project-visual.rocket{background:#e6dfcf}.project-visual.paypal{background:var(--blue)}.project-visual.ypo{background:var(--ypo)}.project-visual.scout{background:var(--sage)}
+.project-meta{padding:36px 34px 32px;display:flex;flex-direction:column;min-width:0;background:var(--surface)}
+.company{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:760}
+.logo{width:33px;height:33px;border-radius:8px;background:#fff;border:1px solid rgba(25,24,21,.12);object-fit:contain;padding:5px}.logo.scout{padding:3px}
+.project-copy{margin:auto 0}
+.project h3{font-size:clamp(31px,3.35vw,45px);line-height:1;letter-spacing:-.046em;margin:0;font-weight:675}
+.project p{font-size:14px;line-height:1.58;color:var(--muted);margin:16px 0 0;max-width:410px}
+.project-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-top:30px}
+.project-role{font-size:11.25px;color:#7a766e;line-height:1.4}
+.project-link{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:720;white-space:nowrap}
+.project-link .arrow{font-size:16px;line-height:1;transition:transform .2s ease}
+.project:hover .project-link .arrow{transform:translate(3px,-3px)}
+
+.browser{width:100%;max-width:720px;background:#fff;border:1px solid rgba(25,24,21,.12);border-radius:13px;overflow:hidden;box-shadow:0 22px 44px rgba(25,24,21,.14);transform:rotate(-.55deg) scale(.985);transition:transform .38s cubic-bezier(.2,.8,.2,1)}
+.project:hover .browser{transform:rotate(0) scale(1)}
+.browser-bar{height:26px;background:#f4f4f0;display:flex;align-items:center;gap:5px;padding:0 10px}
+.browser-dot{width:6px;height:6px;border-radius:50%;background:#bebeb8}
+.browser img{width:100%;height:auto;max-height:390px;object-fit:cover;object-position:center top}
+.paypal .browser img{object-fit:contain;background:#fff}.scout .browser img{object-position:center 30%}
+.phone-stack{display:flex;align-items:center;justify-content:center;gap:20px;width:100%}
+.phone{width:min(40%,222px);border-radius:24px;background:#fff;padding:6px;box-shadow:0 22px 44px rgba(0,0,0,.24);transition:transform .38s cubic-bezier(.2,.8,.2,1)}
+.phone:first-child{transform:rotate(-4deg) translateY(9px)}.phone:last-child{transform:rotate(4deg) translateY(-7px)}
+.project:hover .phone:first-child{transform:rotate(-1.5deg) translateY(5px)}.project:hover .phone:last-child{transform:rotate(1.5deg) translateY(-3px)}
+.phone img{width:100%;border-radius:18px;aspect-ratio:9/16;object-fit:cover;object-position:top}
+
+footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
+.footer{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.footer a:hover{color:var(--ink)}
+
+@media(max-width:980px){
+  .hero{padding:62px 0 66px}.hero h1{font-size:clamp(46px,7vw,70px)}
+  .career-grid{grid-template-columns:1.4fr 1fr 1fr;gap:10px}
+  .career-item{min-height:154px}
+  .career-item:last-child{grid-column:2/4}
+  .project,.project.reverse{grid-template-columns:1fr}.project-visual,.project.reverse .project-visual{order:1;min-height:390px}.project-meta,.project.reverse .project-meta{order:2;min-height:330px}
+}
+@media(max-width:760px){
+  .wrap{width:min(var(--max),calc(100% - 28px))}.email-full{display:none}.email-short{display:inline}
+  .hero{padding:48px 0 54px}.hero h1{font-size:clamp(40px,11vw,58px);max-width:none}
+  #experience{padding:38px 0 44px}.section-title{margin-bottom:22px}
+  .career-grid{grid-template-columns:1fr 1fr;gap:10px}.career-item{min-height:144px;padding:15px}.career-item.rocket{grid-column:1/3}.career-item:last-child{grid-column:auto}.career-top{margin-bottom:16px}.career-item h3{font-size:16px}.career-item.rocket h3{font-size:22px}
+  #work{padding:50px 0 58px}.project{border-radius:15px}.project-visual{padding:21px;min-height:300px}.project-meta{padding:28px 24px;min-height:300px}.project h3{font-size:clamp(29px,8.5vw,40px)}.phone-stack{gap:8px}.phone{width:44%;border-radius:20px;padding:5px}.phone img{border-radius:16px}.footer{align-items:flex-start;flex-direction:column}
+}
+@media(max-width:520px){
+  .career-grid{grid-template-columns:1fr;gap:10px}
+  .career-item,.career-item.rocket,.career-item:last-child{grid-column:auto;min-height:126px}
+  .career-focus,.career-item h3{max-width:none}
+  .project-foot{align-items:flex-start;flex-direction:column;gap:10px}
+}
+@media(max-width:480px){
+  .hero h1{font-size:clamp(38px,11.7vw,50px);letter-spacing:-.048em}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap nav">
+    <a class="brand" href="#top">Clay Swartz</a>
+    <div class="nav-contact">
+      <a href="mailto:clayton.swartz@gmail.com"><span class="email-full">clayton.swartz@gmail.com</span><span class="email-short">Email</span></a>
+    </div>
+  </div>
+</nav>
+
+<main id="top">
+<header class="hero">
+  <div class="wrap">
+    <h1>I lead product design teams through complexity, making complicated systems <span class="emphasis">feel obvious.</span></h1>
+  </div>
+</header>
+
+<section id="experience">
+  <div class="wrap">
+    <h2 class="section-title">Experience</h2>
+    <div class="career-grid">
+      <article class="career-item rocket">
+        <div class="career-top"><div class="career-company"><img class="career-logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Frocket_logo.jpg&amp;w=96" alt="Rocket"><span>Rocket</span></div><span class="career-date">2023 to present</span></div>
+        <h3>AVP, Product Design</h3>
+        <p class="career-focus">B2B platforms · AI systems · Design leadership</p>
+      </article>
+      <article class="career-item">
+        <div class="career-top"><div class="career-company"><img class="career-logo" src="https://www.paypalobjects.com/webstatic/icon/pp258.png" alt="PayPal"><span>PayPal</span></div><span class="career-date">2022 to 2023</span></div>
+        <h3>Sr. Product Designer, Merchant</h3>
+        <p class="career-focus">Checkout · Payments · Design systems</p>
+      </article>
+      <article class="career-item">
+        <div class="career-top"><div class="career-company"><img class="career-logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fypoglobal_logo.jpeg&amp;w=96" alt="YPO"><span>YPO</span></div><span class="career-date">2017 to 2022</span></div>
+        <h3>UX Designer</h3>
+        <p class="career-focus">Member platform · Mobile · Global UX</p>
+      </article>
+      <article class="career-item">
+        <div class="career-top"><div class="career-company"><img class="career-logo scout" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fscouting_america_logo.jpeg&amp;w=96" alt="Scouting America"><span>Scouting</span></div><span class="career-date">2012 to 2017</span></div>
+        <h3>UX Writer</h3>
+        <p class="career-focus">Digital tools · Content systems · Service UX</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="work">
+  <div class="wrap">
+    <h2 class="section-title">Selected work</h2>
+    <div class="work-list">
+
+      <a class="project" href="https://www.rocketpro.com/rocket-pro-navigate" target="_blank" rel="noreferrer">
+        <div class="project-visual rocket">
+          <div class="browser">
+            <div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div>
+            <img src="https://www.rocketpro.com/_next/image?q=100&amp;url=%2Fapi%2Fmedia%2Ffile%2Frocketpro-portal-homepage.png&amp;w=1290" alt="Rocket Pro portal dashboard">
+          </div>
+        </div>
+        <div class="project-meta">
+          <div class="company"><img class="logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Frocket_logo.jpg&amp;w=96" alt="Rocket"><span>Rocket</span></div>
+          <div class="project-copy"><h3>Rocket Pro Navigate</h3><p>Design leadership across banker and realtor workflows, portal redesign and AI agent experiences.</p></div>
+          <div class="project-foot"><span class="project-role">AVP, Product Design · 2023 to present</span><span class="project-link">See product <span class="arrow">↗</span></span></div>
+        </div>
+      </a>
+
+      <a class="project reverse" href="https://developer.paypal.com/platforms/checkout/standard/best-practices" target="_blank" rel="noreferrer">
+        <div class="project-visual paypal">
+          <div class="browser">
+            <div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div>
+            <img src="https://www.paypalobjects.com/devdoc/best-practices/screenshot_one-time-payments_one-click_combined.png" alt="PayPal checkout flow">
+          </div>
+        </div>
+        <div class="project-meta">
+          <div class="company"><img class="logo" src="https://www.paypalobjects.com/webstatic/icon/pp258.png" alt="PayPal"><span>PayPal</span></div>
+          <div class="project-copy"><h3>Merchant checkout</h3><p>Product design across merchant payment, checkout and account experiences in high-trust financial workflows.</p></div>
+          <div class="project-foot"><span class="project-role">Sr. Product Designer, Merchant · 2022 to 2023</span><span class="project-link">See product <span class="arrow">↗</span></span></div>
+        </div>
+      </a>
+
+      <a class="project" href="https://apps.apple.com/us/app/ypo-connect/id1341679808" target="_blank" rel="noreferrer">
+        <div class="project-visual ypo">
+          <div class="phone-stack" aria-label="YPO Connect product screens">
+            <div class="phone"><img src="https://apprecs.org/gp/img/screenshots/webp/900/com.ypo.connect/AyF7J9t6cnywOZGDAb473R1QqSxoQRsUidFyY_t51vo-screenshot-2" alt="YPO Connect member directory"></div>
+            <div class="phone"><img src="https://apprecs.org/gp/img/screenshots/webp/900/com.ypo.connect/AyF7J9t6cnywOZGDAb473R1QqSxoQRsUidFyY_t51vo-screenshot-3" alt="YPO Connect Around Me experience"></div>
+          </div>
+        </div>
+        <div class="project-meta">
+          <div class="company"><img class="logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fypoglobal_logo.jpeg&amp;w=96" alt="YPO"><span>YPO</span></div>
+          <div class="project-copy"><h3>Global member platform</h3><p>Product design for member discovery, events, networking and content across web and mobile.</p></div>
+          <div class="project-foot"><span class="project-role">UX Designer · 2017 to 2022</span><span class="project-link">See app <span class="arrow">↗</span></span></div>
+        </div>
+      </a>
+
+      <a class="project reverse" href="https://my.scouting.org/" target="_blank" rel="noreferrer">
+        <div class="project-visual scout">
+          <div class="browser">
+            <div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div>
+            <img src="https://www.troopwebhost.com/Images/MyScoutingTrainingDashboardAddSearch.png" alt="my.Scouting Training Manager dashboard">
+          </div>
+        </div>
+        <div class="project-meta">
+          <div class="company"><img class="logo scout" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fscouting_america_logo.jpeg&amp;w=96" alt="Scouting America"><span>Scouting</span></div>
+          <div class="project-copy"><h3>Member + volunteer tools</h3><p>UX content and service design for training, account and program workflows.</p></div>
+          <div class="project-foot"><span class="project-role">UX Writer · 2012 to 2017</span><span class="project-link">See product <span class="arrow">↗</span></span></div>
+        </div>
+      </a>
+
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap footer"><span>Clay Swartz</span><a href="mailto:clayton.swartz@gmail.com">Email</a></div>
+</footer>
+</body>
+</html>
