@@ -56,7 +56,16 @@ nav{height:66px;position:sticky;top:0;z-index:50;background:rgba(255,253,250,.96
 #work .section-title{margin-bottom:30px}
 .work-list{display:grid;gap:22px}
 .project{display:grid;grid-template-columns:minmax(0,1.46fr) minmax(300px,.76fr);min-height:450px;border-radius:18px;overflow:hidden;background:var(--surface);transition:transform .24s cubic-bezier(.2,.8,.2,1),box-shadow .24s ease}
-.project:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(25,24,21,.08)}
+.project:hover{transform:translateY(-4px);box-shadow:0 18px 38px rgba(25,24,21,.10)}
+.project:focus-visible{outline:3px solid var(--yellow);outline-offset:4px}
+.project-visual::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 58%,rgba(18,17,15,.12));opacity:0;transition:opacity .25s ease;pointer-events:none}
+.project:hover .project-visual::after,.project:focus-visible .project-visual::after{opacity:1}
+.project-hover-cue{position:absolute;right:18px;bottom:18px;z-index:3;display:inline-flex;align-items:center;gap:6px;padding:8px 11px;border-radius:999px;background:rgba(255,253,250,.94);color:var(--ink);font-size:11px;font-weight:760;letter-spacing:-.01em;box-shadow:0 7px 18px rgba(18,17,15,.10);opacity:0;transform:translateY(7px);transition:opacity .22s ease,transform .22s ease}
+.project:hover .project-hover-cue,.project:focus-visible .project-hover-cue{opacity:1;transform:translateY(0)}
+.project-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:18px}
+.project-tag{display:inline-flex;padding:5px 8px;border-radius:999px;background:#f1eee6;border:1px solid rgba(25,24,21,.09);font-size:10.5px;line-height:1;color:#6f6b63;font-weight:650}
+.project-visual{--shift-x:0px;--shift-y:0px}
+.project-visual .browser,.project-visual .phone-stack{translate:var(--shift-x) var(--shift-y);transition:translate .18s ease,transform .38s cubic-bezier(.2,.8,.2,1)}
 .project.reverse{grid-template-columns:minmax(300px,.76fr) minmax(0,1.46fr)}
 .project.reverse .project-visual{order:2}
 .project.reverse .project-meta{order:1}
@@ -129,7 +138,7 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
 <main id="top">
 <header class="hero">
   <div class="wrap">
-    <h1>I lead product design teams through complexity, making complicated systems <span class="emphasis">feel obvious.</span></h1>
+    <h1>I lead design teams that make complex systems <span class="emphasis">feel simple.</span></h1>
   </div>
 </header>
 
@@ -167,7 +176,7 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
     <div class="work-list">
 
       <a class="project" href="https://www.rocketpro.com/rocket-pro-navigate" target="_blank" rel="noreferrer">
-        <div class="project-visual rocket">
+        <div class="project-visual rocket"><span class="project-hover-cue">Explore project ↗</span>
           <div class="browser">
             <div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div>
             <img src="https://www.rocketpro.com/_next/image?q=100&amp;url=%2Fapi%2Fmedia%2Ffile%2Frocketpro-portal-homepage.png&amp;w=1290" alt="Rocket Pro portal dashboard">
@@ -175,13 +184,13 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
         </div>
         <div class="project-meta">
           <div class="company"><img class="logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Frocket_logo.jpg&amp;w=96" alt="Rocket"><span>Rocket</span></div>
-          <div class="project-copy"><h3>Rocket Pro Navigate</h3><p>Design leadership across banker and realtor workflows, portal redesign and AI agent experiences.</p></div>
+          <div class="project-copy"><h3>Rocket Pro Navigate</h3><p>Design leadership across banker and realtor workflows, portal redesign and AI agent experiences.</p><div class="project-tags"><span class="project-tag">Design leadership</span><span class="project-tag">B2B workflows</span><span class="project-tag">AI agents</span></div></div>
           <div class="project-foot"><span class="project-role">AVP, Product Design · 2023 to present</span><span class="project-link">See product <span class="arrow">↗</span></span></div>
         </div>
       </a>
 
       <a class="project reverse" href="https://developer.paypal.com/platforms/checkout/standard/best-practices" target="_blank" rel="noreferrer">
-        <div class="project-visual paypal">
+        <div class="project-visual paypal"><span class="project-hover-cue">Explore project ↗</span>
           <div class="browser">
             <div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div>
             <img src="https://www.paypalobjects.com/devdoc/best-practices/screenshot_one-time-payments_one-click_combined.png" alt="PayPal checkout flow">
@@ -189,13 +198,13 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
         </div>
         <div class="project-meta">
           <div class="company"><img class="logo" src="https://www.paypalobjects.com/webstatic/icon/pp258.png" alt="PayPal"><span>PayPal</span></div>
-          <div class="project-copy"><h3>Merchant checkout</h3><p>Product design across merchant payment, checkout and account experiences in high-trust financial workflows.</p></div>
+          <div class="project-copy"><h3>Merchant checkout</h3><p>Product design across merchant payment, checkout and account experiences in high-trust financial workflows.</p><div class="project-tags"><span class="project-tag">Checkout</span><span class="project-tag">Payments</span><span class="project-tag">Design systems</span></div></div>
           <div class="project-foot"><span class="project-role">Sr. Product Designer, Merchant · 2022 to 2023</span><span class="project-link">See product <span class="arrow">↗</span></span></div>
         </div>
       </a>
 
       <a class="project" href="https://apps.apple.com/us/app/ypo-connect/id1341679808" target="_blank" rel="noreferrer">
-        <div class="project-visual ypo">
+        <div class="project-visual ypo"><span class="project-hover-cue">Explore project ↗</span>
           <div class="phone-stack" aria-label="YPO Connect product screens">
             <div class="phone"><img src="https://apprecs.org/gp/img/screenshots/webp/900/com.ypo.connect/AyF7J9t6cnywOZGDAb473R1QqSxoQRsUidFyY_t51vo-screenshot-2" alt="YPO Connect member directory"></div>
             <div class="phone"><img src="https://apprecs.org/gp/img/screenshots/webp/900/com.ypo.connect/AyF7J9t6cnywOZGDAb473R1QqSxoQRsUidFyY_t51vo-screenshot-3" alt="YPO Connect Around Me experience"></div>
@@ -203,13 +212,13 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
         </div>
         <div class="project-meta">
           <div class="company"><img class="logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fypoglobal_logo.jpeg&amp;w=96" alt="YPO"><span>YPO</span></div>
-          <div class="project-copy"><h3>Global member platform</h3><p>Product design for member discovery, events, networking and content across web and mobile.</p></div>
+          <div class="project-copy"><h3>Global member platform</h3><p>Product design for member discovery, events, networking and content across web and mobile.</p><div class="project-tags"><span class="project-tag">Web + mobile</span><span class="project-tag">Discovery</span><span class="project-tag">Events</span></div></div>
           <div class="project-foot"><span class="project-role">UX Designer · 2017 to 2022</span><span class="project-link">See app <span class="arrow">↗</span></span></div>
         </div>
       </a>
 
       <a class="project reverse" href="https://my.scouting.org/" target="_blank" rel="noreferrer">
-        <div class="project-visual scout">
+        <div class="project-visual scout"><span class="project-hover-cue">Explore project ↗</span>
           <div class="browser">
             <div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div>
             <img src="https://www.troopwebhost.com/Images/MyScoutingTrainingDashboardAddSearch.png" alt="my.Scouting Training Manager dashboard">
@@ -217,7 +226,7 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
         </div>
         <div class="project-meta">
           <div class="company"><img class="logo scout" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fscouting_america_logo.jpeg&amp;w=96" alt="Scouting America"><span>Scouting</span></div>
-          <div class="project-copy"><h3>Member + volunteer tools</h3><p>UX content and service design for training, account and program workflows.</p></div>
+          <div class="project-copy"><h3>Member + volunteer tools</h3><p>UX content and service design for training, account and program workflows.</p><div class="project-tags"><span class="project-tag">Training</span><span class="project-tag">Accounts</span><span class="project-tag">Service UX</span></div></div>
           <div class="project-foot"><span class="project-role">UX Writer · 2012 to 2017</span><span class="project-link">See product <span class="arrow">↗</span></span></div>
         </div>
       </a>
@@ -230,5 +239,22 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
 <footer>
   <div class="wrap footer"><span>Clay Swartz</span><a href="mailto:clayton.swartz@gmail.com">Email</a></div>
 </footer>
+<script>
+if (window.matchMedia("(hover:hover) and (pointer:fine)").matches) {
+  document.querySelectorAll(".project-visual").forEach((visual) => {
+    visual.addEventListener("pointermove", (event) => {
+      const rect = visual.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width - .5) * 8;
+      const y = ((event.clientY - rect.top) / rect.height - .5) * 6;
+      visual.style.setProperty("--shift-x", x.toFixed(1) + "px");
+      visual.style.setProperty("--shift-y", y.toFixed(1) + "px");
+    });
+    visual.addEventListener("pointerleave", () => {
+      visual.style.setProperty("--shift-x", "0px");
+      visual.style.setProperty("--shift-y", "0px");
+    });
+  });
+}
+</script>
 </body>
 </html>
