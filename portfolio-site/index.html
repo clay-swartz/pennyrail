@@ -98,9 +98,11 @@ nav{height:66px;position:sticky;top:0;z-index:50;background:rgba(255,253,250,.96
 #work .section-title{margin-bottom:10px}
 .work-intro{margin:0;max-width:620px;color:var(--muted);font-size:14px;line-height:1.55}
 .project{cursor:default}
-.project-link{border:0;background:none;padding:0;color:var(--ink);font:inherit;cursor:pointer}
-.project-link:hover .arrow,.project-link:focus-visible .arrow{transform:translateX(4px)}
-.project-link:focus-visible{outline:2px solid var(--yellow);outline-offset:5px;border-radius:2px}
+.project-link{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(25,24,21,.14);background:#f6f2e9;padding:9px 12px;border-radius:999px;color:var(--ink);font:inherit;font-size:11.5px;font-weight:720;cursor:pointer;transition:background .2s ease,color .2s ease,border-color .2s ease,transform .2s ease}
+.project-link .arrow{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(18,17,15,.08);transition:transform .2s ease,background .2s ease}
+.project-link:hover,.project-link:focus-visible{background:var(--ink);color:#fffdfa;border-color:var(--ink);transform:translateY(-1px)}
+.project-link:hover .arrow,.project-link:focus-visible .arrow{transform:translateX(2px);background:rgba(255,255,255,.16)}
+.project-link:focus-visible{outline:3px solid var(--yellow);outline-offset:3px}
 .case-dialog{width:min(1040px,calc(100% - 32px));max-height:min(90vh,900px);padding:0;border:0;border-radius:22px;background:var(--surface);color:var(--ink);box-shadow:0 32px 80px rgba(18,17,15,.28);overflow:auto}
 .case-dialog::backdrop{background:rgba(18,17,15,.58);backdrop-filter:blur(5px)}
 .case-shell{position:relative;padding:46px}
@@ -130,6 +132,14 @@ nav{height:66px;position:sticky;top:0;z-index:50;background:rgba(255,253,250,.96
 .case-slide-note small{display:block;margin-bottom:18px;font-size:11px;font-weight:800;letter-spacing:.11em}
 .case-slide-note strong{display:block;font-size:clamp(32px,5vw,56px);line-height:1;letter-spacing:-.05em;max-width:760px}
 .case-slide-note p{margin:22px 0 0;max-width:620px;font-size:16px;line-height:1.6;color:inherit;opacity:.78}
+.scout-mobile-stack{display:flex;align-items:center;justify-content:center;gap:20px;width:100%;max-width:650px}
+.scout-device{width:min(43%,250px);border-radius:26px;background:#111;padding:7px;box-shadow:0 22px 44px rgba(18,17,15,.22);transition:transform .38s cubic-bezier(.2,.8,.2,1)}
+.scout-device:first-child{transform:rotate(-4deg) translateY(10px)}
+.scout-device:last-child{transform:rotate(4deg) translateY(-8px)}
+.project:hover .scout-device:first-child{transform:rotate(-1.5deg) translateY(5px)}
+.project:hover .scout-device:last-child{transform:rotate(1.5deg) translateY(-3px)}
+.scout-device img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:20px}
+.case-scout-stack{max-width:650px}
 .case-phone-stack{max-width:600px}
 .case-gallery-controls{display:grid;grid-template-columns:42px 1fr 42px;align-items:center;padding:11px 14px;background:var(--surface);border-top:1px solid rgba(25,24,21,.10)}
 .case-gallery-controls button{width:36px;height:36px;border:1px solid rgba(25,24,21,.12);border-radius:50%;background:#fffdfa;color:var(--ink);font-size:16px;cursor:pointer}
@@ -245,7 +255,7 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
         <div class="project-meta">
           <div class="company"><img class="logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Frocket_logo.jpg&amp;w=96" alt="Rocket"><span>Rocket</span></div>
           <div class="project-copy"><h3>Rocket Pro Navigate</h3><p>I lead design across banker and realtor workflows, platform modernization and emerging AI experiences.</p><div class="project-tags"><span class="project-tag">Design leadership</span><span class="project-tag">B2B workflows</span><span class="project-tag">AI agents</span></div></div>
-          <div class="project-foot"><span class="project-role">AVP, Product Design · 2023 to present</span><button class="project-link" type="button" data-open-project="rocket">View project <span class="arrow">→</span></button></div>
+          <div class="project-foot"><span class="project-role">AVP, Product Design · 2023 to present</span><button class="project-link" type="button" data-open-project="rocket">View case study <span class="arrow">→</span></button></div>
         </div>
       </article>
 
@@ -259,7 +269,7 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
         <div class="project-meta">
           <div class="company"><img class="logo" src="https://www.paypalobjects.com/webstatic/icon/pp258.png" alt="PayPal"><span>PayPal</span></div>
           <div class="project-copy"><h3>Merchant checkout</h3><p>I designed merchant payment, checkout and account experiences where clarity and trust really matter.</p><div class="project-tags"><span class="project-tag">Checkout</span><span class="project-tag">Payments</span><span class="project-tag">Design systems</span></div></div>
-          <div class="project-foot"><span class="project-role">Sr. Product Designer, Merchant · 2022 to 2023</span><button class="project-link" type="button" data-open-project="paypal">View project <span class="arrow">→</span></button></div>
+          <div class="project-foot"><span class="project-role">Sr. Product Designer, Merchant · 2022 to 2023</span><button class="project-link" type="button" data-open-project="paypal">View case study <span class="arrow">→</span></button></div>
         </div>
       </article>
 
@@ -273,21 +283,21 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
         <div class="project-meta">
           <div class="company"><img class="logo" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fypoglobal_logo.jpeg&amp;w=96" alt="YPO"><span>YPO</span></div>
           <div class="project-copy"><h3>Global member platform</h3><p>I designed across web and mobile experiences for member discovery, events, networking and content.</p><div class="project-tags"><span class="project-tag">Web + mobile</span><span class="project-tag">Discovery</span><span class="project-tag">Events</span></div></div>
-          <div class="project-foot"><span class="project-role">UX Designer · 2017 to 2022</span><button class="project-link" type="button" data-open-project="ypo">View project <span class="arrow">→</span></button></div>
+          <div class="project-foot"><span class="project-role">UX Designer · 2017 to 2022</span><button class="project-link" type="button" data-open-project="ypo">View case study <span class="arrow">→</span></button></div>
         </div>
       </article>
 
       <article class="project reverse" data-project-card="scout">
         <div class="project-visual scout">
-          <div class="browser">
-            <div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div>
-            <img src="https://www.troopwebhost.com/Images/MyScoutingTrainingDashboardAddSearch.png" alt="my.Scouting Training Manager dashboard">
+          <div class="scout-mobile-stack" aria-label="Scouting mobile product screens">
+            <div class="scout-device"><img src="https://global.discourse-cdn.com/scouting/original/2X/9/975593525eac4301efe3c564dcbd97409b8fc048.jpeg" alt="Scouting mobile rank advancement progress"></div>
+            <div class="scout-device"><img src="https://global.discourse-cdn.com/scouting/original/3X/8/6/8682d01fa40b0536c994ed1dfcfa3e052357f3ea.jpeg" alt="Scouting mobile calendar"></div>
           </div>
         </div>
         <div class="project-meta">
           <div class="company"><img class="logo scout" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fscouting_america_logo.jpeg&amp;w=96" alt="Scouting America"><span>Scouting</span></div>
-          <div class="project-copy"><h3>Member + volunteer tools</h3><p>I worked across UX content and service design for training, account and program workflows.</p><div class="project-tags"><span class="project-tag">Training</span><span class="project-tag">Accounts</span><span class="project-tag">Service UX</span></div></div>
-          <div class="project-foot"><span class="project-role">UX Writer · 2012 to 2017</span><button class="project-link" type="button" data-open-project="scout">View project <span class="arrow">→</span></button></div>
+          <div class="project-copy"><h3>Scouting digital ecosystem</h3><p>I worked across the member and volunteer experience, helping make advancement, training, accounts and service workflows easier to understand.</p><div class="project-tags"><span class="project-tag">Content design</span><span class="project-tag">Member tools</span><span class="project-tag">Service UX</span></div></div>
+          <div class="project-foot"><span class="project-role">UX Writer · 2012 to 2017</span><button class="project-link" type="button" data-open-project="scout">View case study <span class="arrow">→</span></button></div>
         </div>
       </article>
     </div>
@@ -375,18 +385,18 @@ footer{background:var(--paper);padding:30px 0 38px;color:#77736b;font-size:11px}
     <button class="case-close" type="button" aria-label="Close project">×</button>
     <div class="case-head">
       <div class="company"><img class="logo scout" src="https://www.clayswartz.com/_next/image?q=75&amp;url=%2Fimages%2Fscouting_america_logo.jpeg&amp;w=96" alt=""><span>Scouting America</span></div>
-      <h2 id="case-scout-title">Member + volunteer tools</h2>
-      <p>I worked in UX content and service design across training, account and program workflows used by members and volunteers.</p>
+      <h2 id="case-scout-title">Scouting digital ecosystem</h2>
+      <p>I worked across Scouting’s member and volunteer digital ecosystem, using UX content and service-design thinking to make complicated organizational workflows easier to understand and move through.</p>
       <div class="case-meta"><span>UX Writer</span><span>2012 to 2017</span></div>
     </div>
     <div class="case-story-grid">
       <section><span>The complexity</span><p>Volunteer-driven systems have to work for people with very different levels of experience, time and technical confidence. The product can’t assume everyone already knows how the organization works.</p></section>
-      <section><span>What I worked on</span><p>I worked across training, account and program workflows, using UX content and service-design thinking to make instructions, decisions and next steps easier to understand.</p></section>
+      <section><span>What I worked on</span><p>I worked across digital member and volunteer tools, using UX content and service-design thinking to make dense information, instructions and next steps easier to understand.</p></section>
       <section><span>What I cared about</span><p>Good content is product design. Clear language, useful structure and the right information at the right moment can remove as much friction as a redesigned screen.</p></section>
     </div>
     <div class="case-gallery" data-gallery>
       <div class="case-track">
-        <div class="case-slide case-slide-image scout-slide"><div class="browser case-browser"><div class="browser-bar"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></div><img src="https://www.troopwebhost.com/Images/MyScoutingTrainingDashboardAddSearch.png" alt="my.Scouting Training Manager"></div></div>
+        <div class="case-slide case-slide-image scout-slide"><div class="scout-mobile-stack case-scout-stack"><div class="scout-device"><img src="https://global.discourse-cdn.com/scouting/original/2X/9/975593525eac4301efe3c564dcbd97409b8fc048.jpeg" alt="Scouting rank advancement mobile experience"></div><div class="scout-device"><img src="https://global.discourse-cdn.com/scouting/original/3X/8/6/8682d01fa40b0536c994ed1dfcfa3e052357f3ea.jpeg" alt="Scouting calendar mobile experience"></div></div></div>
         <div class="case-slide case-slide-note"><div><small>CONTENT AS DESIGN</small><strong>Words are part of the workflow.</strong><p>I use content to reduce uncertainty, explain what matters and make the next action easier to understand—especially in systems people may only use occasionally.</p></div></div>
         <div class="case-slide case-slide-note sage"><div><small>SERVICE UX</small><strong>Design for the person who doesn’t know the system.</strong><p>When a product supports volunteers, the experience has to help people succeed without requiring them to become experts in the organization first.</p></div></div>
       </div>
