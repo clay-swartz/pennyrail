@@ -50,11 +50,11 @@ const process = [
 
 class SiteHeader extends HTMLElement {
   connectedCallback(){
-    this.innerHTML = \`
+    this.innerHTML = `
       <header class="site-header">
         <div class="shell header-inner">
           <a class="brand" href="#top" aria-label="Brown Books Publishing Group home">
-            <img src="\${LOGO}" alt="Brown Books Publishing Group" />
+            <img src="${LOGO}" alt="Brown Books Publishing Group" />
           </a>
           <nav class="nav" aria-label="Primary">
             <a href="#model">Our model</a>
@@ -64,14 +64,14 @@ class SiteHeader extends HTMLElement {
           </nav>
           <a class="header-cta" href="#contact">Talk about your book</a>
         </div>
-      </header>\`;
+      </header>`;
   }
 }
 customElements.define('site-header', SiteHeader);
 
 class HeroLead extends HTMLElement {
   connectedCallback(){
-    this.innerHTML = \`
+    this.innerHTML = `
       <section class="hero" id="top">
         <div class="hero-pattern" aria-hidden="true"></div>
         <div class="shell hero-grid">
@@ -98,7 +98,7 @@ class HeroLead extends HTMLElement {
             <small>Prefer the phone? <a href="tel:+19723810009">(972) 381-0009</a></small>
           </form>
         </div>
-      </section>\`;
+      </section>`;
 
     const form = this.querySelector('form');
     const status = this.querySelector('.form-status');
@@ -118,7 +118,7 @@ customElements.define('hero-lead', HeroLead);
 
 class RelationshipProcess extends HTMLElement {
   connectedCallback(){
-    this.innerHTML = \`
+    this.innerHTML = `
       <section class="process-section" id="model">
         <div class="shell">
           <div class="section-head process-head">
@@ -131,21 +131,21 @@ class RelationshipProcess extends HTMLElement {
 
           <div class="process-layout">
             <div class="process-steps" role="list">
-              \${process.map((step, index) => \`
-                <button class="process-step \${index===0?'active':''}" type="button" data-index="\${index}" aria-pressed="\${index===0?'true':'false'}">
-                  <span class="step-number">0\${index+1}</span>
-                  <span class="step-copy"><strong>\${step.title}</strong><span>\${step.body}</span></span>
-                </button>\`).join('')}
+              ${process.map((step, index) => `
+                <button class="process-step ${index===0?'active':''}" type="button" data-index="${index}" aria-pressed="${index===0?'true':'false'}">
+                  <span class="step-number">0${index+1}</span>
+                  <span class="step-copy"><strong>${step.title}</strong><span>${step.body}</span></span>
+                </button>`).join('')}
             </div>
             <div class="process-media" aria-live="polite">
               <div class="process-media-inner">
-                <span class="process-stat">\${process[0].stat}</span>
-                <span class="process-detail">\${process[0].detail}</span>
+                <span class="process-stat">${process[0].stat}</span>
+                <span class="process-detail">${process[0].detail}</span>
               </div>
             </div>
           </div>
         </div>
-      </section>\`;
+      </section>`;
 
     const buttons = [...this.querySelectorAll('.process-step')];
     const stat = this.querySelector('.process-stat');
@@ -171,20 +171,20 @@ customElements.define('relationship-process', RelationshipProcess);
 class ServiceTicker extends HTMLElement {
   connectedCallback(){
     const items = ['Editorial','Book design','Production','Distribution','Sales','Licensing','Public relations','Marketing','Social media','Fulfillment'];
-    const set = (hidden=false) => \`<div class="ticker-set" \${hidden?'aria-hidden="true"':'role="list"'}>\${items.map(item=>\`<span class="ticker-item" \${hidden?'':'role="listitem"'}><i></i>\${item}</span>\`).join('')}</div>\`;
-    this.innerHTML = \`
+    const set = (hidden=false) => `<div class="ticker-set" ${hidden?'aria-hidden="true"':'role="list"'}>${items.map(item=>`<span class="ticker-item" ${hidden?'':'role="listitem"'}><i></i>${item}</span>`).join('')}</div>`;
+    this.innerHTML = `
       <section class="ticker-wrap" id="services" aria-label="Brown Books services">
         <div class="ticker-viewport" tabindex="0" aria-label="Publishing services. Hover or focus to pause.">
-          <div class="ticker-track">\${set(false)}\${set(true)}</div>
+          <div class="ticker-track">${set(false)}${set(true)}</div>
         </div>
-      </section>\`;
+      </section>`;
   }
 }
 customElements.define('service-ticker', ServiceTicker);
 
 class BooksStrip extends HTMLElement {
   connectedCallback(){
-    this.innerHTML = \`
+    this.innerHTML = `
       <section class="books-section" id="books">
         <div class="shell">
           <div class="section-head compact">
@@ -195,18 +195,18 @@ class BooksStrip extends HTMLElement {
             <a class="text-link" href="https://www.brownbooks.com/shop/new-releases" target="_blank" rel="noreferrer">Shop new releases →</a>
           </div>
           <div class="book-row">
-            \${books.map(book => \`
+            ${books.map(book => `
               <a class="book" href="https://www.brownbooks.com/shop/new-releases" target="_blank" rel="noreferrer">
-                <div class="book-art"><img src="\${book.image}" alt="Cover of \${book.title}" /></div>
+                <div class="book-art"><img src="${book.image}" alt="Cover of ${book.title}" /></div>
                 <div class="book-meta">
-                  <h3>\${book.title}</h3>
-                  <p>\${book.subtitle}</p>
-                  <span>\${book.price}</span>
+                  <h3>${book.title}</h3>
+                  <p>${book.subtitle}</p>
+                  <span>${book.price}</span>
                 </div>
-              </a>\`).join('')}
+              </a>`).join('')}
           </div>
         </div>
-      </section>\`;
+      </section>`;
   }
 }
 customElements.define('books-strip', BooksStrip);
@@ -221,7 +221,7 @@ class ImprintsStrip extends HTMLElement {
       ["RADO’s Press",'A nonprofit children’s imprint supporting rescue animals through Operation Kindness.'],
       ['Brown Christian Press','Books intended to inspire, enrich and serve Christian readers.']
     ];
-    this.innerHTML = \`
+    this.innerHTML = `
       <section class="imprints-section">
         <div class="shell">
           <div class="section-head compact">
@@ -231,10 +231,10 @@ class ImprintsStrip extends HTMLElement {
             </div>
           </div>
           <div class="imprints-grid">
-            \${imprints.map((item,index)=>\`<article class="imprint"><span>0\${index+1}</span><h3>\${item[0]}</h3><p>\${item[1]}</p></article>\`).join('')}
+            ${imprints.map((item,index)=>`<article class="imprint"><span>0${index+1}</span><h3>${item[0]}</h3><p>${item[1]}</p></article>`).join('')}
           </div>
         </div>
-      </section>\`;
+      </section>`;
   }
 }
 customElements.define('imprints-strip', ImprintsStrip);
@@ -247,7 +247,7 @@ class FaqAccordion extends HTMLElement {
       ['What does distribution include?','Brown Books supports wholesale and retail distribution with a sales force that presents titles to book buyers and helps keep books available in the market beyond launch.'],
       ['What does an editor bring to a book?','Professional editing strengthens structure, clarity, consistency, readability, and the way an author’s message reaches the reader.']
     ];
-    this.innerHTML = \`
+    this.innerHTML = `
       <section class="faq-section" id="faq">
         <div class="shell faq-layout">
           <div class="faq-intro">
@@ -256,17 +256,17 @@ class FaqAccordion extends HTMLElement {
             <a class="text-link" href="https://www.brownbooks.com/about-page" target="_blank" rel="noreferrer">Read the full Brown Books FAQ →</a>
           </div>
           <div class="faq-list">
-            \${faqs.map((faq,index)=>\`<details \${index===0?'open':''}><summary><span>\${faq[0]}</span><b aria-hidden="true">+</b></summary><p>\${faq[1]}</p></details>\`).join('')}
+            ${faqs.map((faq,index)=>`<details ${index===0?'open':''}><summary><span>${faq[0]}</span><b aria-hidden="true">+</b></summary><p>${faq[1]}</p></details>`).join('')}
           </div>
         </div>
-      </section>\`;
+      </section>`;
   }
 }
 customElements.define('faq-accordion', FaqAccordion);
 
 class CtaBand extends HTMLElement {
   connectedCallback(){
-    this.innerHTML = \`
+    this.innerHTML = `
       <section class="cta-band">
         <div class="shell cta-inner">
           <div>
@@ -278,18 +278,18 @@ class CtaBand extends HTMLElement {
             <a class="cta-phone" href="tel:+19723810009">(972) 381-0009</a>
           </div>
         </div>
-      </section>\`;
+      </section>`;
   }
 }
 customElements.define('cta-band', CtaBand);
 
 class SiteFooter extends HTMLElement {
   connectedCallback(){
-    this.innerHTML = \`
+    this.innerHTML = `
       <footer class="site-footer">
         <div class="shell footer-grid">
           <div class="footer-brand">
-            <img src="\${LOGO}" alt="Brown Books Publishing Group" />
+            <img src="${LOGO}" alt="Brown Books Publishing Group" />
             <p>Dallas, Texas · Independent publishing since 1994.</p>
           </div>
           <div><strong>Contact</strong><a href="mailto:publishing@brownbooks.com">publishing@brownbooks.com</a><a href="tel:+19723810009">(972) 381-0009</a></div>
@@ -297,14 +297,14 @@ class SiteFooter extends HTMLElement {
           <div><strong>Explore</strong><a href="https://www.brownbooks.com/" target="_blank" rel="noreferrer">Current Brown Books site ↗</a><a href="https://www.brownbooks.com/shop" target="_blank" rel="noreferrer">Shop ↗</a></div>
         </div>
         <div class="shell concept-note">Redesign concept for review · Not the current Brown Books website.</div>
-      </footer>\`;
+      </footer>`;
   }
 }
 customElements.define('site-footer', SiteFooter);
 
 class BrownBooksSite extends HTMLElement {
   connectedCallback(){
-    this.innerHTML = \`
+    this.innerHTML = `
       <site-header></site-header>
       <main>
         <hero-lead></hero-lead>
@@ -315,7 +315,7 @@ class BrownBooksSite extends HTMLElement {
         <faq-accordion></faq-accordion>
         <cta-band></cta-band>
       </main>
-      <site-footer></site-footer>\`;
+      <site-footer></site-footer>`;
   }
 }
 customElements.define('bb-site', BrownBooksSite);
