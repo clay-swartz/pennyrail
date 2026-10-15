@@ -7,7 +7,7 @@ const NAV = [
   ["Publicity","/publicity/"],
   ["News","/news/"],
   ["Shop","/shop/"],
-  ["Connect","/connect/"]
+  ["Submissions","/submissions/"]
 ];
 
 const books = [
@@ -54,8 +54,18 @@ const bookTypes = [
 ];
 
 const authors = [
-  "Maria Bellia Abbate","Alexandra Allred","Robbie Bach","Alex Becker","Christy Bowe","Melissa Corley Carter",
-  "Esther Clark","Steve Copling","Jeff Crilley","Matthew Crosston","Stratton Horres","Julie Lucht"
+  ["Maria Bellia Abbate","https://www.brownbooks.com/maria-bellia-abbate"],
+  ["Alexandra Allred","https://www.brownbooks.com/alexandra-allred"],
+  ["Robbie Bach","https://www.brownbooks.com/robbie-bach"],
+  ["Alex Becker","https://www.brownbooks.com/alex-becker"],
+  ["Christy Bowe","https://www.brownbooks.com/christy-bowe"],
+  ["Melissa Corley Carter","https://www.brownbooks.com/melissa-corley-carter"],
+  ["Esther Clark","https://www.brownbooks.com/esther-clark"],
+  ["Steve Copling","https://www.brownbooks.com/steve-copling"],
+  ["Jeff Crilley","https://www.brownbooks.com/jeff-crilley"],
+  ["Matthew Crosston","https://www.brownbooks.com/matthew-crosston"],
+  ["Stratton Horres","https://www.brownbooks.com/stratton-horres"],
+  ["Julie Lucht","https://www.brownbooks.com/julie-lucht"]
 ];
 
 const imprints = [
@@ -81,12 +91,18 @@ class SiteHeader extends HTMLElement {
   connectedCallback(){
     this.innerHTML = `
       <header class="site-header">
+        <div class="utility-bar">
+          <div class="shell utility-inner">
+            <a href="tel:+19723810009">(972) 381-0009</a>
+            <a href="mailto:publishing@brownbooks.com">publishing@brownbooks.com</a>
+          </div>
+        </div>
         <div class="shell header-inner">
           <a class="brand" href="/" aria-label="Brown Books Publishing Group home">
             <img src="${LOGO}" alt="Brown Books Publishing Group" />
           </a>
           <nav class="nav" aria-label="Primary">${navMarkup()}</nav>
-          <a class="header-cta" href="/connect/">Talk about your book</a>
+          <a class="header-cta" href="/submissions/">Talk about your book</a>
         </div>
       </header>`;
   }
@@ -375,7 +391,7 @@ class AboutPage extends HTMLElement {
       <section class="story-section"><div class="shell split-copy"><div><p class="eyebrow">Relationship Publishing®</p><h2>Professional publishing without surrendering the book.</h2></div><div><p>Brown Books pioneered a model that gives authors greater ownership, involvement, and profitability while keeping editorial, design, production, distribution, sales, marketing and publicity under one roof.</p><p>That means the book is developed as a publishing product and supported as a business, platform, legacy project, or creative work—depending on what the author needs it to do.</p></div></div></section>
       <relationship-process></relationship-process>
       <section class="imprints-section"><div class="shell"><div class="section-head compact"><div><p class="eyebrow">Imprints</p><h2>One publishing family. Distinct missions.</h2></div></div><div class="imprints-grid">${imprints.map((item,i)=>`<article><span>0${i+1}</span><h3>${item[0]}</h3><p>${item[1]}</p></article>`).join("")}</div></div></section>
-      <section class="cta-band"><div class="shell cta-inner"><div><p class="eyebrow light">Your book, your rights</p><h2>See if the model fits.</h2></div><a class="button light-button" href="/connect/">Start a conversation</a></div></section>`;
+      <section class="cta-band"><div class="shell cta-inner"><div><p class="eyebrow light">Your book, your rights</p><h2>See if the model fits.</h2></div><a class="button light-button" href="/submissions/">Start a conversation</a></div></section>`;
   }
 }
 customElements.define("about-page", AboutPage);
@@ -387,7 +403,7 @@ class AuthorsPage extends HTMLElement {
       <interior-hero eyebrow="Our authors" title="The people behind the books." copy="From New York Times bestsellers to first-time authors, Brown Books has built its list around people with something worth saying—and a reason to put it into print."></interior-hero>
       <section class="authors-section"><div class="shell">
         <div class="alphabet" aria-label="Author index">${letters.map(l=>`<span>${l}</span>`).join("")}</div>
-        <div class="author-grid">${authors.map((a,i)=>`<article><span>${String(i+1).padStart(2,"0")}</span><h3>${a}</h3></article>`).join("")}</div>
+        <div class="author-grid">${authors.map((a,i)=>`<a class="author-card" href="${a[1]}" target="_blank" rel="noreferrer"><span>${String(i+1).padStart(2,"0")}</span><h3>${a[0]}</h3><b aria-hidden="true">↗</b></a>`).join("")}</div>
         <div class="page-link-row"><a class="text-link" href="https://www.brownbooks.com/authors-page" target="_blank" rel="noreferrer">Browse the complete current author directory ↗</a></div>
       </div></section>`;
   }
@@ -430,21 +446,34 @@ class NewsPage extends HTMLElement {
 }
 customElements.define("news-page", NewsPage);
 
-class ConnectPage extends HTMLElement {
+class SubmissionsPage extends HTMLElement {
   connectedCallback(){
     this.innerHTML=`
-      <section class="connect-hero"><div class="hero-pattern" aria-hidden="true"></div><div class="shell hero-grid">
-        <div class="hero-copy"><p class="eyebrow light">Connect</p><h1>Let’s talk about<br><em>your book.</em></h1><p class="hero-lede">Tell us what you’re working on, where you are in the process, and what you want the book to do. We’ll help you figure out the right next step.</p></div>
-        <lead-form></lead-form>
-      </div></section>
-      <section class="contact-section"><div class="shell contact-grid"><div><p class="eyebrow">Call</p><h3>(972) 381-0009</h3></div><div><p class="eyebrow">Email</p><h3>publishing@brownbooks.com</h3></div><div><p class="eyebrow">Visit</p><h3>16250 Knoll Trail Drive, Suite 205<br>Dallas, Texas 75248</h3></div></div></section>`;
+      <section class="connect-hero submissions-hero">
+        <div class="hero-pattern" aria-hidden="true"></div>
+        <div class="shell hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow light">Submissions</p>
+            <h1>Have a book?<br><em>Show us.</em></h1>
+            <p class="hero-lede">Tell us what you’re working on and attach a manuscript or proposal. We’ll help you figure out whether Brown Books is the right publishing fit.</p>
+          </div>
+          <lead-form></lead-form>
+        </div>
+      </section>
+      <section class="contact-section">
+        <div class="shell contact-grid">
+          <div><p class="eyebrow">Call</p><h3>(972) 381-0009</h3></div>
+          <div><p class="eyebrow">Email</p><h3>publishing@brownbooks.com</h3></div>
+          <div><p class="eyebrow">Visit</p><h3>16250 Knoll Trail Drive, Suite 205<br>Dallas, Texas 75248</h3></div>
+        </div>
+      </section>`;
   }
 }
-customElements.define("connect-page", ConnectPage);
+customElements.define("submissions-page", SubmissionsPage);
 
 class CtaBand extends HTMLElement {
   connectedCallback(){
-    this.innerHTML=`<section class="cta-band"><div class="shell cta-inner"><div><p class="eyebrow light">Your book starts with a conversation</p><h2>Bring the idea.<br>Build the book together.</h2></div><div class="cta-actions"><a class="button light-button" href="/connect/">Talk about your book</a><a class="cta-phone" href="tel:+19723810009">(972) 381-0009</a></div></div></section>`;
+    this.innerHTML=`<section class="cta-band"><div class="shell cta-inner"><div><p class="eyebrow light">Your book starts with a conversation</p><h2>Bring the idea.<br>Build the book together.</h2></div><div class="cta-actions"><a class="button light-button" href="/submissions/">Talk about your book</a><a class="cta-phone" href="tel:+19723810009">(972) 381-0009</a></div></div></section>`;
   }
 }
 customElements.define("cta-band", CtaBand);
@@ -482,7 +511,7 @@ class BrownBooksSite extends HTMLElement {
       publicity:"publicity-page",
       news:"news-page",
       shop:"shop-page",
-      connect:"connect-page"
+      submissions:"submissions-page"
     }[page] || "home-page";
     this.innerHTML=`<site-header></site-header><main><${tag}></${tag}></main><site-footer></site-footer>`;
   }
