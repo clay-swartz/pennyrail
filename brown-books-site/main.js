@@ -93,8 +93,16 @@ class SiteHeader extends HTMLElement {
       <header class="site-header">
         <div class="utility-bar">
           <div class="shell utility-inner">
-            <a href="tel:+19723810009">(972) 381-0009</a>
-            <a href="mailto:publishing@brownbooks.com">publishing@brownbooks.com</a>
+            <div class="utility-meta">
+              <span>Dallas, Texas</span>
+              <span class="utility-sep">/</span>
+              <span>Relationship Publishing® since 1994</span>
+            </div>
+            <div class="utility-contact">
+              <a href="tel:+19723810009">(972) 381-0009</a>
+              <span class="utility-dot" aria-hidden="true"></span>
+              <a href="mailto:publishing@brownbooks.com">publishing@brownbooks.com</a>
+            </div>
           </div>
         </div>
         <div class="shell header-inner">
@@ -102,7 +110,7 @@ class SiteHeader extends HTMLElement {
             <img src="${LOGO}" alt="Brown Books Publishing Group" />
           </a>
           <nav class="nav" aria-label="Primary">${navMarkup()}</nav>
-          <a class="header-cta" href="/submissions/">Talk about your book</a>
+          <a class="header-cta" href="/submissions/">Want to talk?</a>
         </div>
       </header>`;
   }
