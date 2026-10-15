@@ -118,6 +118,25 @@ class LeadForm extends HTMLElement {
             </select>
           </label>` : ""}
         </div>
+
+        <div class="upload-field">
+          <span class="upload-label">${publicity ? "Book / media materials" : "Manuscript or proposal"}</span>
+          <label class="upload-control">
+            <input
+              class="upload-input"
+              type="file"
+              name="manuscript"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            />
+            <span class="upload-icon" aria-hidden="true">↥</span>
+            <span class="upload-copy">
+              <strong>Attach a file</strong>
+              <small>PDF, DOC, or DOCX · up to 25 MB</small>
+            </span>
+            <span class="upload-name">No file selected</span>
+          </label>
+        </div>
+
         <button type="submit">${publicity ? "Talk publicity" : "Start a conversation"}</button>
         <div class="form-status" role="status" aria-live="polite"></div>
         <small>${publicity ? 'Or email <a href="mailto:publicity@brownbooks.com">publicity@brownbooks.com</a>' : 'Prefer the phone? <a href="tel:+19723810009">(972) 381-0009</a>'}</small>
@@ -126,13 +145,45 @@ class LeadForm extends HTMLElement {
     const form = this.querySelector("form");
     const status = this.querySelector(".form-status");
     const button = this.querySelector("button");
+    const uploadInput = this.querySelector(".upload-input");
+    const uploadName = this.querySelector(".upload-name");
+
+    uploadInput.addEventListener("change", () => {
+      const file = uploadInput.files?.[0];
+      if(!file){
+        uploadName.textContent = "No file selected";
+        uploadName.classList.remove("has-file");
+        return;
+      }
+
+      const allowedExtensions = /\.(pdf|doc|docx)$/i;
+      if(!allowedExtensions.test(file.name)){
+        uploadInput.value = "";
+        uploadName.textContent = "Choose a PDF, DOC, or DOCX";
+        uploadName.classList.remove("has-file");
+        return;
+      }
+
+      if(file.size > 25 * 1024 * 1024){
+        uploadInput.value = "";
+        uploadName.textContent = "File must be under 25 MB";
+        uploadName.classList.remove("has-file");
+        return;
+      }
+
+      uploadName.textContent = file.name;
+      uploadName.classList.add("has-file");
+    });
+
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       if(!form.checkValidity()){ form.reportValidity(); return; }
       const original = button.textContent;
       button.disabled = true;
       button.textContent = "Thanks — got it";
-      status.textContent = "Concept form only — no information was sent.";
+      status.textContent = uploadInput.files?.[0]
+        ? "Concept form only — the selected file was not uploaded."
+        : "Concept form only — no information was sent.";
       setTimeout(() => { button.disabled = false; button.textContent = original; }, 1800);
     });
   }
