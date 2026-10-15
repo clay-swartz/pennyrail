@@ -125,7 +125,7 @@ class LeadForm extends HTMLElement {
       <form class="lead-card">
         <p class="card-kicker">${publicity ? "Publicity + marketing" : "Start here"}</p>
         <h2>${publicity ? "Where should your book go next?" : "Let’s talk about your book."}</h2>
-        <p>${publicity ? "Tell us about the book and the audience you want to reach." : "Every great publishing partnership starts with a conversation."}</p>
+        ${publicity ? '<p>Tell us about the book and the audience you want to reach.</p>' : ""}
         <div class="field-grid">
           <label><span>Name</span><input required name="name" autocomplete="name" /></label>
           <label><span>Email</span><input required type="email" name="email" autocomplete="email" /></label>
@@ -221,9 +221,11 @@ class HomeHero extends HTMLElement {
         <div class="hero-pattern" aria-hidden="true"></div>
         <div class="shell hero-grid">
           <div class="hero-copy">
-            <p class="eyebrow light">Relationship Publishing® since 1994</p>
-            <h1>More than a publisher.<br><em>An author’s advantage.</em></h1>
-            <p class="hero-lede">Brown Books gives authors the quality, reach, and expertise of a professional publishing house—without asking them to give up ownership of the work they created.</p>
+            <h1 class="home-headline">
+              <span>More than a publisher.</span>
+              <span class="hero-accent">An author’s advantage.</span>
+            </h1>
+            <p class="hero-lede home-lede">Brown Books gives authors the quality, reach, and expertise of a professional publishing house—without asking them to give up ownership of the work they created.</p>
             <div class="hero-proof"><span>Rights retained</span><span>80–90% of profits</span><span>Sales + distribution</span></div>
           </div>
           <lead-form></lead-form>
