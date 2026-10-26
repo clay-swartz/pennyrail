@@ -599,51 +599,54 @@ body[data-page="publicity-services"]{
 .pr-topbar{
   flex:0 0 auto;
   background:#fff;
-  border-bottom:1px solid #ddd3c8;
+  border-bottom:4px solid var(--bb-red);
 }
 .pr-topbar-inner{
   width:min(1180px,calc(100% - 40px));
-  min-height:76px;
+  min-height:108px;
   margin:0 auto;
-  display:flex;
+  display:grid;
+  grid-template-columns:170px minmax(0,1fr);
+  gap:34px;
   align-items:center;
 }
 .pr-topbar img{
   width:auto;
   max-width:150px;
-  max-height:60px;
+  max-height:66px;
   object-fit:contain;
+}
+.pr-topbar-title{
+  min-width:0;
+  padding-left:30px;
+  border-left:1px solid #ddd3c8;
+}
+.pr-topbar-title h1{
+  margin:0;
+  font-family:var(--display);
+  font-size:clamp(32px,3vw,43px);
+  font-weight:600;
+  line-height:1;
+  letter-spacing:-.03em;
+}
+.pr-topbar-title p{
+  max-width:720px;
+  margin:7px 0 0;
+  color:#665d58;
+  font-size:15px;
+  line-height:1.45;
 }
 .pr-content{
   flex:1;
   width:min(1180px,calc(100% - 40px));
   margin:0 auto;
-  padding:20px 0 26px;
+  padding:22px 0 28px;
   display:flex;
   flex-direction:column;
 }
-.pr-intro{
-  max-width:860px;
-  margin-bottom:16px;
-}
-.pr-intro h1{
-  margin:0;
-  font-family:var(--display);
-  font-size:clamp(38px,3.8vw,52px);
-  font-weight:600;
-  line-height:1;
-  letter-spacing:-.03em;
-}
-.pr-intro p{
-  max-width:820px;
-  margin:10px 0 0;
-  color:#655c57;
-  font-size:16px;
-  line-height:1.5;
-}
 .pr-merch{
   display:grid;
-  gap:16px;
+  gap:14px;
 }
 .pr-package-grid{
   display:grid;
@@ -654,7 +657,7 @@ body[data-page="publicity-services"]{
 .pr-card{
   position:relative;
   min-width:0;
-  min-height:390px;
+  min-height:378px;
   display:flex;
   flex-direction:column;
   padding:20px 22px;
@@ -683,7 +686,7 @@ body[data-page="publicity-services"]{
 }
 .pr-card h2{
   margin:0;
-  padding-right:92px;
+  padding-right:96px;
   font-family:var(--display);
   font-size:34px;
   font-weight:600;
@@ -694,20 +697,24 @@ body[data-page="publicity-services"]{
   padding-right:0;
 }
 .pr-card-meta{
-  margin:10px 0 0;
+  margin:8px 0 0;
   color:var(--bb-red-deep);
   font-size:14px;
   font-weight:800;
   line-height:1.4;
 }
 .pr-card-copy{
-  margin:18px 0 0;
+  margin:13px 0 0;
   color:#665d58;
   font-size:15px;
-  line-height:1.5;
+  line-height:1.45;
+}
+.pr-card-copy strong{
+  color:#302927;
 }
 .pr-card h3{
-  margin:16px 0 8px;
+  margin:15px 0 7px;
+  color:#403936;
   font-size:14px;
   font-weight:800;
 }
@@ -723,41 +730,30 @@ body[data-page="publicity-services"]{
   border-bottom:1px solid #e5ddd5;
   color:#453e3a;
   font-size:14px;
-  line-height:1.35;
+  line-height:1.32;
 }
 .pr-card li::before{
   content:"";
   position:absolute;
   left:0;
-  top:15px;
+  top:13px;
   width:4px;
   height:4px;
   border-radius:50%;
   background:var(--bb-red);
 }
-.pr-tier-row{
-  display:grid;
-  grid-template-columns:1fr auto;
-  gap:12px;
-  padding:9px 0;
-  border-bottom:1px solid #e5ddd5;
-  color:#453e3a;
-  font-size:12px;
-}
-.pr-tier-row strong{
-  color:var(--bb-red-deep);
-}
 .pr-card-actions{
   margin-top:auto;
-  padding-top:14px;
+  padding-top:12px;
 }
 .pr-detail-button{
   width:100%;
-  min-height:44px;
+  min-height:42px;
   border:1px solid var(--bb-red);
   border-radius:4px;
   background:transparent;
   color:var(--bb-red-deep);
+  font-size:14px;
   font-weight:800;
 }
 .pr-detail-button:hover{
@@ -777,18 +773,10 @@ body[data-page="publicity-services"]{
   grid-template-columns:minmax(0,.9fr) minmax(0,1.25fr) 210px;
   gap:28px;
   align-items:center;
-  padding:16px 20px;
+  padding:15px 20px;
   background:#e9dfd2;
   border:1px solid #d5c7b8;
   border-left:5px solid #9a6044;
-}
-.pr-social-overline{
-  margin:0 0 6px;
-  color:#8b5740;
-  font-size:10px;
-  font-weight:800;
-  letter-spacing:.06em;
-  text-transform:uppercase;
 }
 .pr-social-copy h2{
   margin:0;
@@ -797,16 +785,19 @@ body[data-page="publicity-services"]{
   font-weight:600;
   line-height:1.05;
 }
-.pr-social-copy > p:last-child{
-  margin:9px 0 0;
+.pr-social-copy > p{
+  margin:8px 0 0;
   color:#675e58;
   font-size:14px;
-  line-height:1.45;
+  line-height:1.4;
+}
+.pr-social-copy strong{
+  color:#493e39;
 }
 .pr-social-points{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:7px 20px;
+  gap:6px 20px;
   margin:0;
   padding:0;
   list-style:none;
@@ -816,7 +807,7 @@ body[data-page="publicity-services"]{
   padding-left:13px;
   color:#4b433f;
   font-size:13px;
-  line-height:1.35;
+  line-height:1.3;
 }
 .pr-social-points li::before{
   content:"";
@@ -872,7 +863,7 @@ body[data-page="publicity-services"]{
 .pr-dialog-meta{
   margin:8px 0 0;
   color:var(--bb-red-deep);
-  font-size:12px;
+  font-size:13px;
   font-weight:800;
 }
 .pr-dialog-close{
@@ -913,7 +904,7 @@ body[data-page="publicity-services"]{
   padding:10px 0;
   border-bottom:1px solid #e5ddd5;
   color:#453e3a;
-  font-size:12.5px;
+  font-size:13px;
   line-height:1.4;
 }
 .pr-campaign-block{
@@ -937,22 +928,29 @@ body[data-page="publicity-services"]{
 }
 .pr-hours dt{
   color:#5d5550;
-  font-size:12px;
+  font-size:12.5px;
 }
 .pr-hours dd{
   margin:0;
   color:#2c2724;
-  font-size:12px;
+  font-size:12.5px;
   font-weight:800;
   white-space:nowrap;
 }
 .pr-focus{
   margin:10px 0 0;
   color:#6d645e;
-  font-size:12px;
+  font-size:12.5px;
   line-height:1.5;
 }
 @media(max-width:900px){
+  .pr-topbar-inner{
+    grid-template-columns:145px minmax(0,1fr);
+    gap:22px;
+  }
+  .pr-topbar-title{
+    padding-left:22px;
+  }
   .pr-package-grid{
     grid-template-columns:1fr;
   }
@@ -976,20 +974,25 @@ body[data-page="publicity-services"]{
     width:calc(100% - 28px);
   }
   .pr-topbar-inner{
-    min-height:76px;
+    min-height:92px;
+    grid-template-columns:112px 1fr;
+    gap:14px;
   }
   .pr-topbar img{
-    max-width:132px;
-    max-height:60px;
+    max-width:108px;
+    max-height:56px;
+  }
+  .pr-topbar-title{
+    padding-left:14px;
+  }
+  .pr-topbar-title h1{
+    font-size:26px;
+  }
+  .pr-topbar-title p{
+    display:none;
   }
   .pr-content{
-    padding:24px 0 30px;
-  }
-  .pr-intro h1{
-    font-size:36px;
-  }
-  .pr-intro p{
-    font-size:13.5px;
+    padding:18px 0 28px;
   }
   .pr-card{
     padding:20px;
@@ -1005,7 +1008,7 @@ body[data-page="publicity-services"]{
     margin-bottom:12px;
   }
   .pr-social-support{
-    padding:20px;
+    padding:18px;
   }
   .pr-social-points{
     grid-template-columns:1fr;
