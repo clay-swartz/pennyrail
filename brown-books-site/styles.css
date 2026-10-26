@@ -587,15 +587,15 @@ img{display:block;max-width:100%}
 
 /* Standalone Publicity & PR services merchandiser */
 body[data-page="publicity-services"]{
-  background:#f3eee7;
+  background:#efe3d5;
   color:#211c1a;
 }
 .pr-page{
   min-height:100vh;
 }
 .pr-topbar{
-  background:#fffdfa;
-  border-bottom:1px solid rgba(75,61,56,.10);
+  background:#fffaf4;
+  border-bottom:1px solid rgba(122,40,47,.12);
 }
 .pr-topbar-inner{
   width:min(1160px,calc(100% - 48px));
@@ -614,7 +614,7 @@ body[data-page="publicity-services"]{
 }
 .pr-topbar-title{
   padding-left:28px;
-  border-left:1px solid rgba(75,61,56,.14);
+  border-left:3px solid #a72b35;
 }
 .pr-topbar-title h1{
   margin:0;
@@ -623,11 +623,12 @@ body[data-page="publicity-services"]{
   font-weight:600;
   line-height:1;
   letter-spacing:-.03em;
+  color:#2b2422;
 }
 .pr-topbar-title p{
   max-width:760px;
   margin:7px 0 0;
-  color:#6a615c;
+  color:#6a5c56;
   font-size:15px;
   line-height:1.45;
 }
@@ -651,24 +652,24 @@ body[data-page="publicity-services"]{
   border-radius:16px;
 }
 .pr-card.standard{
-  background:#fffdfa;
-  border:1px solid rgba(76,63,58,.10);
-  box-shadow:0 10px 28px rgba(55,42,37,.05);
+  background:#fff9f3;
+  border:1px solid rgba(167,43,53,.13);
+  box-shadow:0 10px 28px rgba(87,52,45,.06);
 }
 .pr-card.custom{
   position:relative;
-  background:#4b4547;
+  background:#7a3f47;
   color:#fff;
-  border:1px solid rgba(44,39,40,.18);
-  box-shadow:0 14px 34px rgba(57,48,50,.13);
+  border:1px solid rgba(92,39,47,.30);
+  box-shadow:0 16px 38px rgba(104,51,59,.16);
 }
 .pr-custom-note{
   position:absolute;
   top:22px;
   right:26px;
-  color:#d9cdcf;
+  color:#f7dfe2;
   font-size:11px;
-  font-weight:700;
+  font-weight:800;
   letter-spacing:.04em;
   text-transform:uppercase;
 }
@@ -686,27 +687,30 @@ body[data-page="publicity-services"]{
   line-height:1.03;
   letter-spacing:-.025em;
 }
+.pr-card.standard h2{
+  color:#6f252d;
+}
 .pr-card-meta{
   margin:8px 0 0;
-  color:#8a3036;
+  color:#a72b35;
   font-size:14px;
-  font-weight:700;
+  font-weight:800;
 }
 .pr-card.custom .pr-card-meta{
-  color:#e7dadd;
+  color:#f4d8dc;
 }
 .pr-card-copy{
   max-width:560px;
   margin:20px 0 0;
-  color:#655c57;
+  color:#65544e;
   font-size:15px;
   line-height:1.5;
 }
 .pr-card-copy strong{
-  color:#2d2724;
+  color:#332724;
 }
 .pr-card.custom .pr-card-copy{
-  color:rgba(255,255,255,.78);
+  color:rgba(255,255,255,.82);
 }
 .pr-card.custom .pr-card-copy strong{
   color:#fff;
@@ -722,7 +726,7 @@ body[data-page="publicity-services"]{
 .pr-feature-list li{
   position:relative;
   padding-left:17px;
-  color:#453e3a;
+  color:#4a3b36;
   font-size:14px;
   line-height:1.38;
 }
@@ -731,14 +735,14 @@ body[data-page="publicity-services"]{
   position:absolute;
   left:0;
   top:0;
-  color:#a72b35;
+  color:#b52f3a;
   font-weight:800;
 }
 .pr-card.custom .pr-feature-list li{
-  color:rgba(255,255,255,.90);
+  color:rgba(255,255,255,.92);
 }
 .pr-card.custom .pr-feature-list li::before{
-  color:#dcbec2;
+  color:#f6cfd5;
 }
 .pr-detail-link,
 .pr-social-link{
@@ -755,23 +759,23 @@ body[data-page="publicity-services"]{
 .pr-detail-link{
   align-self:flex-start;
   margin-top:auto;
-  border:1px solid rgba(122,40,47,.26);
-  background:#fff;
-  color:#7a282f;
+  border:1px solid #a72b35;
+  background:#a72b35;
+  color:#fff;
 }
 .pr-detail-link:hover{
-  background:#f8eeee;
-  border-color:rgba(122,40,47,.42);
+  background:#87242c;
+  border-color:#87242c;
   transform:translateY(-1px);
 }
 .pr-card.custom .pr-detail-link{
-  border-color:rgba(255,255,255,.26);
-  background:rgba(255,255,255,.08);
-  color:#fff;
+  border-color:#fff7f8;
+  background:#fff7f8;
+  color:#6c3138;
 }
 .pr-card.custom .pr-detail-link:hover{
-  background:rgba(255,255,255,.14);
-  border-color:rgba(255,255,255,.38);
+  background:#fff;
+  border-color:#fff;
 }
 .pr-social-support{
   margin-top:18px;
@@ -780,10 +784,10 @@ body[data-page="publicity-services"]{
   gap:28px;
   align-items:center;
   padding:24px 28px;
-  background:#ddd2c4;
-  border:1px solid rgba(87,70,62,.10);
+  background:#d8b09d;
+  border:1px solid rgba(139,77,55,.16);
   border-radius:16px;
-  box-shadow:0 8px 24px rgba(70,53,45,.04);
+  box-shadow:0 10px 26px rgba(104,66,49,.06);
 }
 .pr-social-copy h2{
   margin:0;
@@ -792,11 +796,11 @@ body[data-page="publicity-services"]{
   font-weight:600;
   line-height:1.05;
   letter-spacing:-.02em;
-  color:#332c29;
+  color:#4b2d25;
 }
 .pr-social-copy p{
   margin:8px 0 0;
-  color:#615852;
+  color:#5a4038;
   font-size:14px;
   line-height:1.45;
 }
@@ -808,7 +812,7 @@ body[data-page="publicity-services"]{
 .pr-social-points span{
   position:relative;
   padding-left:14px;
-  color:#4d4540;
+  color:#51362e;
   font-size:13px;
   line-height:1.35;
 }
@@ -816,17 +820,17 @@ body[data-page="publicity-services"]{
   content:"•";
   position:absolute;
   left:0;
-  color:#8e5943;
+  color:#9f3e35;
 }
 .pr-social-link{
   white-space:nowrap;
-  border:1px solid rgba(94,69,56,.18);
-  background:#fffdfa;
-  color:#674737;
+  border:1px solid #7f4635;
+  background:#fff7f1;
+  color:#71402f;
 }
 .pr-social-link:hover{
   background:#fff;
-  border-color:rgba(94,69,56,.28);
+  border-color:#6f3b2b;
   transform:translateY(-1px);
 }
 
@@ -837,7 +841,7 @@ body[data-page="publicity-services"]{
   padding:0;
   border:0;
   border-radius:14px;
-  background:#fffdfa;
+  background:#fffaf4;
   color:#211c1a;
   box-shadow:0 30px 100px rgba(24,16,15,.22);
 }
@@ -862,7 +866,7 @@ body[data-page="publicity-services"]{
 }
 .pr-dialog-meta{
   margin:7px 0 0;
-  color:#7d343a;
+  color:#8f343c;
   font-size:13px;
   font-weight:700;
 }
@@ -977,6 +981,7 @@ body[data-page="publicity-services"]{
   }
   .pr-topbar-title{
     padding-left:12px;
+    border-left-width:2px;
   }
   .pr-topbar-title h1{
     font-size:25px;
