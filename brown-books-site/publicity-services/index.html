@@ -21,16 +21,81 @@
     <main class="pr-content">
       <section class="pr-intro">
         <h1>Brown Books Publicity & PR Services</h1>
-        <p>Brown Books offers three publicity and marketing programs to build an author's platform, generate awareness, and support a book's path to market. From prepublication social media marketing to standardized publicity services, and fully customized campaigns, each program is designed to help authors build visibility and connect with readers.</p>
+        <p>Three ways to build an author platform, generate awareness, and support a book’s path to market—from prepublication social media through fully customized publicity campaigns.</p>
       </section>
 
-      <section class="pr-section">
-        <h2>1. Standard Publicity Services</h2>
-        <p class="pr-price">For projects with publicity budgets of $10,000 or less</p>
-        <p>Standard Publicity Services provide a structured publicity offering for authors who need professional support generating awareness for their books.</p>
+      <section class="pr-merch" aria-label="Publicity and marketing programs">
+        <article class="pr-card standard">
+          <h2>Standard Publicity Services</h2>
+          <p class="pr-card-meta">For publicity budgets of $10,000 or less</p>
+          <p class="pr-card-copy">Structured professional support for authors who need help generating awareness and coordinating launch publicity.</p>
+          <h3>Includes</h3>
+          <ul>
+            <li>Press release writing + distribution</li>
+            <li>Author bio + book positioning</li>
+            <li>Press kit development</li>
+            <li>Targeted media research</li>
+            <li>Media, podcast + radio outreach</li>
+            <li>Launch coordination + reporting</li>
+          </ul>
+          <div class="pr-card-actions">
+            <button class="pr-detail-button" data-dialog="standard-dialog">See full details</button>
+          </div>
+        </article>
 
+        <article class="pr-card custom">
+          <h2>Custom Publicity Campaigns</h2>
+          <p class="pr-card-meta">Starting at $15,000 · $200/hour</p>
+          <p class="pr-card-copy">A tailored campaign built around the book, audience, author platform, market potential, and campaign objectives.</p>
+          <h3>Campaign examples</h3>
+          <div class="pr-tier-row"><span>$20,000 campaign</span><strong>100 hours</strong></div>
+          <div class="pr-tier-row"><span>$30,000 campaign</span><strong>150 hours</strong></div>
+          <div class="pr-tier-row"><span>$50,000 campaign</span><strong>250 hours</strong></div>
+          <h3>Can include</h3>
+          <ul>
+            <li>National + regional media relations</li>
+            <li>Podcast + broadcast bookings</li>
+            <li>Reviews, interviews + feature stories</li>
+            <li>Events + speaking opportunities</li>
+          </ul>
+          <div class="pr-card-actions">
+            <button class="pr-detail-button" data-dialog="custom-dialog">See campaign details</button>
+          </div>
+        </article>
+
+        <article class="pr-card social">
+          <h2>Social Media Marketing</h2>
+          <p class="pr-card-meta">Prepublication through launch and beyond</p>
+          <p class="pr-card-copy">Build a recognizable author presence, grow an audience, and create momentum around the book before it reaches the shelf.</p>
+          <h3>Includes</h3>
+          <ul>
+            <li>Author + book brand development</li>
+            <li>Platform strategy</li>
+            <li>Content planning + creation</li>
+            <li>Audience development</li>
+            <li>Preorder + launch promotion</li>
+            <li>Ongoing promotion + reporting</li>
+          </ul>
+          <div class="pr-card-actions">
+            <button class="pr-detail-button" data-dialog="social-dialog">See full details</button>
+          </div>
+        </article>
+      </section>
+
+      <footer class="pr-footer">Brown Books Publishing Group · Publicity & PR Services</footer>
+    </main>
+  </div>
+
+  <dialog class="pr-dialog" id="standard-dialog">
+    <div class="pr-dialog-inner">
+      <div class="pr-dialog-head">
+        <div><h2>Standard Publicity Services</h2><p class="pr-dialog-meta">For projects with publicity budgets of $10,000 or less</p></div>
+        <button class="pr-dialog-close" aria-label="Close">×</button>
+      </div>
+      <div class="pr-dialog-body">
+        <p>Standard Publicity Services provide a structured publicity offering for authors who need professional support generating awareness for their books.</p>
         <h3>Services may include</h3>
-        <ul class="pr-list">
+        <ul class="pr-detail-list">
           <li>Press release writing and distribution</li>
           <li>Author biography and book positioning</li>
           <li>Basic press kit development</li>
@@ -41,15 +106,21 @@
           <li>Publicity calendar and launch coordination</li>
           <li>Coverage monitoring and reporting</li>
         </ul>
-      </section>
+      </div>
+    </div>
+  </dialog>
 
-      <section class="pr-section">
-        <h2>2. Custom Publicity Campaigns</h2>
-        <p class="pr-price">Starting at $15,000 · $200 per hour</p>
+  <dialog class="pr-dialog" id="custom-dialog">
+    <div class="pr-dialog-inner">
+      <div class="pr-dialog-head">
+        <div><h2>Custom Publicity Campaigns</h2><p class="pr-dialog-meta">Starting at $15,000 · $200 per hour</p></div>
+        <button class="pr-dialog-close" aria-label="Close">×</button>
+      </div>
+      <div class="pr-dialog-body">
         <p>Custom Publicity Campaigns are developed around the book's subject, target audience, author platform, and market potential. Each campaign combines strategic planning with targeted outreach and execution, allowing Brown Books to build a publicity program suited to the individual title.</p>
 
         <h3>Services may include</h3>
-        <ul class="pr-list">
+        <ul class="pr-detail-list">
           <li>Publicity strategy and book positioning</li>
           <li>Media research and targeted outreach</li>
           <li>Press release and press kit development</li>
@@ -62,100 +133,102 @@
           <li>Campaign monitoring, follow-up, and reporting</li>
         </ul>
 
-        <h3>Campaign hour examples</h3>
-        <p class="pr-campaign-note">The following examples show how campaign budgets may translate into professional hours and activities. Final allocations depend on the book, author, audience, and campaign objectives.</p>
-
-        <div class="pr-accordion">
-          <details open>
-            <summary>
-              <span class="pr-accordion-title">$20,000 campaign</span>
-              <span class="pr-accordion-hours">100 hours</span>
-              <span class="pr-accordion-icon" aria-hidden="true">+</span>
-            </summary>
-            <div class="pr-accordion-body">
-              <dl class="pr-hours">
-                <div><dt>Strategy and positioning</dt><dd>10 hours</dd></div>
-                <div><dt>Media research, approximately 50–75 targets</dt><dd>10 hours</dd></div>
-                <div><dt>Press materials</dt><dd>10 hours</dd></div>
-                <div><dt>Media outreach</dt><dd>30 hours</dd></div>
-                <div><dt>Podcast outreach</dt><dd>15 hours</dd></div>
-                <div><dt>Launch coordination</dt><dd>10 hours</dd></div>
-                <div><dt>Monitoring and reporting</dt><dd>5 hours</dd></div>
-              </dl>
-              <p class="pr-total">Total: 100 hours</p>
-              <p class="pr-focus"><strong>Focus:</strong> Establish a clear publicity strategy, prepare professional materials, and conduct targeted outreach to relevant media and podcast contacts.</p>
-            </div>
-          </details>
-
-          <details>
-            <summary>
-              <span class="pr-accordion-title">$30,000 campaign</span>
-              <span class="pr-accordion-hours">150 hours</span>
-              <span class="pr-accordion-icon" aria-hidden="true">+</span>
-            </summary>
-            <div class="pr-accordion-body">
-              <dl class="pr-hours">
-                <div><dt>Strategy and positioning</dt><dd>15 hours</dd></div>
-                <div><dt>Media research, approximately 100–150 contacts</dt><dd>15 hours</dd></div>
-                <div><dt>Press materials</dt><dd>12 hours</dd></div>
-                <div><dt>Media outreach</dt><dd>45 hours</dd></div>
-                <div><dt>Podcast and broadcast outreach</dt><dd>25 hours</dd></div>
-                <div><dt>Events and speaking opportunities</dt><dd>12 hours</dd></div>
-                <div><dt>Author platform and cross-promotion</dt><dd>8 hours</dd></div>
-                <div><dt>Monitoring and reporting</dt><dd>10 hours</dd></div>
-                <div><dt>Campaign optimization</dt><dd>8 hours</dd></div>
-              </dl>
-              <p class="pr-total">Total: 150 hours</p>
-              <p class="pr-focus"><strong>Focus:</strong> Expand media outreach, pursue podcast and broadcast opportunities, and build additional visibility through appearances and author platform activities.</p>
-            </div>
-          </details>
-
-          <details>
-            <summary>
-              <span class="pr-accordion-title">$50,000 campaign</span>
-              <span class="pr-accordion-hours">250 hours</span>
-              <span class="pr-accordion-icon" aria-hidden="true">+</span>
-            </summary>
-            <div class="pr-accordion-body">
-              <dl class="pr-hours">
-                <div><dt>Strategy and positioning</dt><dd>20 hours</dd></div>
-                <div><dt>Media research, approximately 200–300 targets</dt><dd>25 hours</dd></div>
-                <div><dt>Press materials</dt><dd>15 hours</dd></div>
-                <div><dt>National and regional media outreach</dt><dd>70 hours</dd></div>
-                <div><dt>Podcast and broadcast outreach</dt><dd>40 hours</dd></div>
-                <div><dt>Events and speaking opportunities</dt><dd>25 hours</dd></div>
-                <div><dt>Industry and expert outreach</dt><dd>20 hours</dd></div>
-                <div><dt>Campaign coordination</dt><dd>15 hours</dd></div>
-                <div><dt>Monitoring and reporting</dt><dd>10 hours</dd></div>
-                <div><dt>Optimization and follow-up</dt><dd>10 hours</dd></div>
-              </dl>
-              <p class="pr-total">Total: 250 hours</p>
-            </div>
-          </details>
+        <div class="pr-campaign-block">
+          <h4>$20,000 campaign · 100 hours</h4>
+          <dl class="pr-hours">
+            <div><dt>Strategy and positioning</dt><dd>10 hours</dd></div>
+            <div><dt>Media research, approximately 50–75 targets</dt><dd>10 hours</dd></div>
+            <div><dt>Press materials</dt><dd>10 hours</dd></div>
+            <div><dt>Media outreach</dt><dd>30 hours</dd></div>
+            <div><dt>Podcast outreach</dt><dd>15 hours</dd></div>
+            <div><dt>Launch coordination</dt><dd>10 hours</dd></div>
+            <div><dt>Monitoring and reporting</dt><dd>5 hours</dd></div>
+          </dl>
+          <p class="pr-focus"><strong>Focus:</strong> Establish a clear publicity strategy, prepare professional materials, and conduct targeted outreach to relevant media and podcast contacts.</p>
         </div>
-      </section>
 
-      <section class="pr-section">
-        <h2>3. Social Media Marketing</h2>
-        <p class="pr-price">Designed to begin before publication and continue through launch and beyond</p>
+        <div class="pr-campaign-block">
+          <h4>$30,000 campaign · 150 hours</h4>
+          <dl class="pr-hours">
+            <div><dt>Strategy and positioning</dt><dd>15 hours</dd></div>
+            <div><dt>Media research, approximately 100–150 contacts</dt><dd>15 hours</dd></div>
+            <div><dt>Press materials</dt><dd>12 hours</dd></div>
+            <div><dt>Media outreach</dt><dd>45 hours</dd></div>
+            <div><dt>Podcast and broadcast outreach</dt><dd>25 hours</dd></div>
+            <div><dt>Events and speaking opportunities</dt><dd>12 hours</dd></div>
+            <div><dt>Author platform and cross-promotion</dt><dd>8 hours</dd></div>
+            <div><dt>Monitoring and reporting</dt><dd>10 hours</dd></div>
+            <div><dt>Campaign optimization</dt><dd>8 hours</dd></div>
+          </dl>
+          <p class="pr-focus"><strong>Focus:</strong> Expand media outreach, pursue podcast and broadcast opportunities, and build additional visibility through appearances and author platform activities.</p>
+        </div>
+
+        <div class="pr-campaign-block">
+          <h4>$50,000 campaign · 250 hours</h4>
+          <dl class="pr-hours">
+            <div><dt>Strategy and positioning</dt><dd>20 hours</dd></div>
+            <div><dt>Media research, approximately 200–300 targets</dt><dd>25 hours</dd></div>
+            <div><dt>Press materials</dt><dd>15 hours</dd></div>
+            <div><dt>National and regional media outreach</dt><dd>70 hours</dd></div>
+            <div><dt>Podcast and broadcast outreach</dt><dd>40 hours</dd></div>
+            <div><dt>Events and speaking opportunities</dt><dd>25 hours</dd></div>
+            <div><dt>Industry and expert outreach</dt><dd>20 hours</dd></div>
+            <div><dt>Campaign coordination</dt><dd>15 hours</dd></div>
+            <div><dt>Monitoring and reporting</dt><dd>10 hours</dd></div>
+            <div><dt>Optimization and follow-up</dt><dd>10 hours</dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="pr-dialog" id="social-dialog">
+    <div class="pr-dialog-inner">
+      <div class="pr-dialog-head">
+        <div><h2>Social Media Marketing</h2><p class="pr-dialog-meta">Designed to begin before publication and continue through launch and beyond</p></div>
+        <button class="pr-dialog-close" aria-label="Close">×</button>
+      </div>
+      <div class="pr-dialog-body">
         <p>Social Media Marketing helps authors establish a recognizable presence, build an audience, and generate interest in their books before publication. By beginning early, authors can build momentum around the book's development, cover reveal, preorder period, publication date, and ongoing availability.</p>
         <p>This service also creates a natural foundation for more extensive publicity campaigns.</p>
 
         <h3>Services may include</h3>
-        <div class="pr-social-list">
-          <div class="pr-social-item"><p><strong>Author and book brand development:</strong> Establish a consistent voice, message, and visual direction.</p></div>
-          <div class="pr-social-item"><p><strong>Platform strategy:</strong> Identify the most relevant platforms for the author and book, such as Instagram, Facebook, LinkedIn, or TikTok.</p></div>
-          <div class="pr-social-item"><p><strong>Content planning:</strong> Build a calendar around key milestones, including manuscript development, cover reveal, preorders, publication, and launch.</p></div>
-          <div class="pr-social-item"><p><strong>Content creation:</strong> Develop social posts, graphics, book quotes, excerpts, author features, and behind-the-scenes content.</p></div>
-          <div class="pr-social-item"><p><strong>Audience development:</strong> Help grow an engaged audience around the author, book, and subject matter.</p></div>
-          <div class="pr-social-item"><p><strong>Preorder and launch promotion:</strong> Build awareness and direct interested readers toward purchasing opportunities.</p></div>
-          <div class="pr-social-item"><p><strong>Ongoing book promotion:</strong> Maintain visibility after publication through continued content and promotional campaigns.</p></div>
-          <div class="pr-social-item"><p><strong>Performance reporting:</strong> Review engagement and other relevant metrics to inform future content.</p></div>
-        </div>
-      </section>
+        <ul class="pr-detail-list">
+          <li><strong>Author and book brand development:</strong> Establish a consistent voice, message, and visual direction.</li>
+          <li><strong>Platform strategy:</strong> Identify the most relevant platforms for the author and book, such as Instagram, Facebook, LinkedIn, or TikTok.</li>
+          <li><strong>Content planning:</strong> Build a calendar around key milestones, including manuscript development, cover reveal, preorders, publication, and launch.</li>
+          <li><strong>Content creation:</strong> Develop social posts, graphics, book quotes, excerpts, author features, and behind-the-scenes content.</li>
+          <li><strong>Audience development:</strong> Help grow an engaged audience around the author, book, and subject matter.</li>
+          <li><strong>Preorder and launch promotion:</strong> Build awareness and direct interested readers toward purchasing opportunities.</li>
+          <li><strong>Ongoing book promotion:</strong> Maintain visibility after publication through continued content and promotional campaigns.</li>
+          <li><strong>Performance reporting:</strong> Review engagement and other relevant metrics to inform future content.</li>
+        </ul>
+      </div>
+    </div>
+  </dialog>
 
-      <footer class="pr-footer">Brown Books Publishing Group · Publicity & PR Services</footer>
-    </main>
-  </div>
+  <script>
+    document.querySelectorAll("[data-dialog]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.getElementById(button.dataset.dialog)?.showModal();
+      });
+    });
+
+    document.querySelectorAll(".pr-dialog-close").forEach((button) => {
+      button.addEventListener("click", () => button.closest("dialog")?.close());
+    });
+
+    document.querySelectorAll(".pr-dialog").forEach((dialog) => {
+      dialog.addEventListener("click", (event) => {
+        const rect = dialog.getBoundingClientRect();
+        const inside =
+          event.clientX >= rect.left &&
+          event.clientX <= rect.right &&
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom;
+        if(!inside) dialog.close();
+      });
+    });
+  </script>
 </body>
 </html>
